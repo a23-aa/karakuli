@@ -1,0 +1,84 @@
+/* ============ Каракули — адаптивность ============ */
+
+@media (max-width:1100px){
+  .layout{grid-template-columns:200px minmax(0,1fr)}
+  .layout .right{display:none}
+  .layout.show-right-mobile .right{display:flex}
+}
+
+/* планшеты */
+@media (max-width:900px){
+  .layout,.layout.no-right{grid-template-columns:minmax(0,1fr);padding:72px 12px 86px;gap:12px}
+  .icon-btn.burger{display:inline-grid}
+  .left{position:fixed;z-index:120;top:0;left:0;bottom:0;width:272px;max-width:84vw;padding:16px 12px;background:var(--card);
+    border-right:2px solid var(--line);transform:translateX(-105%);transition:transform .25s;overflow:auto;box-shadow:var(--glow)}
+  body.drawer-open .left{transform:none}
+  .drawer-ov{display:block;position:fixed;inset:0;z-index:110;background:rgba(20,25,60,.45);opacity:0;pointer-events:none;transition:.25s}
+  body.drawer-open .drawer-ov{opacity:1;pointer-events:auto}
+  .left .drawer-logo{display:flex!important}
+  .settings{grid-template-columns:1fr}
+  .settings-nav{flex-direction:row;overflow-x:auto}
+  .settings-nav button{white-space:nowrap}
+  .pv-box{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;overflow:auto}
+  .pv-img{min-height:240px}
+  .pv-side{max-height:none}
+  .auth-box{grid-template-columns:1fr}
+  .auth-hero{display:none}
+}
+
+/* телефоны */
+@media (max-width:720px){
+  body{font-size:14.5px}
+  .topbar{height:54px;gap:8px;padding:0 10px}
+  .logo{font-size:22px}
+  .search{max-width:none}
+  .top-ava{display:none}
+  .layout,.layout.no-right{padding:64px 8px 90px}
+  .layout.show-right-mobile .right{display:flex}
+  .bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:90;
+    background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(10px);border-top:2px solid var(--line);
+    padding:5px 4px max(6px,env(safe-area-inset-bottom))}
+  .bottom-nav a,.bottom-nav button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:10.5px;font-weight:700;color:var(--muted);
+    background:none;border:0;padding:4px 0;position:relative;cursor:pointer;text-decoration:none}
+  .bottom-nav .active{color:var(--accent-d)}
+  .bottom-nav .active .ic{fill:var(--accent2)}
+  .bottom-nav .badge{position:absolute;top:0;left:55%;margin:0;min-width:17px;height:17px;font-size:10px}
+  .toasts{bottom:78px}
+  .card{border-radius:18px}
+  .post{padding:12px}
+  .pgrid.n3{grid-template-columns:1fr 1fr}
+  .cover{height:130px}
+  .p-main{padding:0 12px 6px;margin-top:-40px}
+  .ava-xl{width:92px;height:92px}
+  .p-info{padding-top:44px}
+  .p-info h1{font-size:22px}
+  .p-stats{gap:18px;padding:8px 14px 12px}
+  .info-table{grid-template-columns:1fr;gap:2px 0}
+  .info-table dt{margin-top:8px}
+  .form-grid{grid-template-columns:1fr}
+  .people{grid-template-columns:1fr}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .pgal{grid-template-columns:repeat(3,1fr);gap:6px}
+  .ccard{flex-wrap:wrap}
+  .ccard .btn{width:100%}
+  .tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .tab{white-space:nowrap}
+  .composer{padding:10px}
+  .composer>.ava{display:none}
+  /* сообщения: список ИЛИ диалог */
+  .chat{grid-template-columns:1fr;height:calc(100vh - 150px);height:calc(100dvh - 150px)}
+  .chat .chat-pane{display:none}
+  .chat.open .chat-list{display:none}
+  .chat.open .chat-pane{display:flex}
+  .chat-back{display:inline-grid}
+  .msg{max-width:86%}
+  .modal-ov{align-items:end;padding:0}
+  .modal,.modal.wide{max-width:none;border-radius:22px 22px 0 0;max-height:90vh}
+  .auth{padding:10px}
+  .auth-form{padding:22px 18px}
+  .deco svg:nth-child(n+4){display:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
