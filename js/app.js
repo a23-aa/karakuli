@@ -55,6 +55,7 @@
     friends: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5 M16 4.8a3 3 0 0 1 0 5.6 M18 14.8c2 .7 3.5 2.3 3.5 5.2"/>',
     groups: '<circle cx="12" cy="8" r="3"/><path d="M7 20c0-3 2-5 5-5s5 2 5 5 M5 9.5a2.5 2.5 0 1 0 .5 4.5 M19 9.5a2.5 2.5 0 1 1-.5 4.5"/>',
     photo: '<path d="M4 7h4l2-2.5h4L16 7h4v12H4z"/><circle cx="12" cy="13" r="3.6"/>',
+    shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
     settings: '<path d="M4 7h9 M17 7h3 M4 17h3 M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     bell: '<path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21h4"/>',
     search: '<circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/>',
@@ -170,6 +171,34 @@
   F.user = id => F.db().users[id];
   F.allUsers = () => Object.values(F.db().users);
   F.fullName = u => u ? (u.first + ' ' + u.last).trim() : 'Удалённый пользователь';
+  /* ---------- юзернеймы и галочки ---------- */
+  const BADGES = {
+    owner: { fill: '#f2b705', ink: '#6b4300', title: 'Владелец сайта' },
+    verified: { fill: '#3b82f6', ink: '#1e3a8a', title: 'Подтверждённая личность' },
+    blogger: { fill: '#9aa3b8', ink: '#4a5268', title: 'Блогер' }
+  };
+  F.BADGES = BADGES;
+  const sealPath = (() => { const n = 10, pts = []; for (let i = 0; i < n * 2; i++) { const a = Math.PI * i / n - Math.PI / 2, r = i % 2 ? 8.6 : 10.8; pts.push((12 + r * Math.cos(a)).toFixed(2) + ',' + (12 + r * Math.sin(a)).toFixed(2)); } return 'M' + pts.join('L') + 'Z'; })();
+  /** Галочка рядом с именем: owner (золотая), verified (синяя), blogger (серая). */
+  F.badgeHTML = (u, size) => {
+    const b = u && BADGES[u.badge]; if (!b) return '';
+    const sz = size || 16;
+    return `<span class="vbadge vb-${u.badge}" title="${b.title}" aria-label="${b.title}"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" aria-hidden="true"><path d="${sealPath}" fill="${b.fill}" stroke="${b.ink}" stroke-width="1.3" stroke-linejoin="round"/>${u.badge === 'owner' ? '<path d="M7.5 14.5l-.8-5 3.2 2.4L12 8l2.1 3.9 3.2-2.4-.8 5z" fill="#fff" stroke="' + b.ink + '" stroke-width=".9" stroke-linejoin="round"/>' : '<path d="M7.6 12.4l3 3 5.9-6.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'}</svg></span>`;
+  };
+  /** Имя с галочкой (безопасный HTML). */
+  F.nameHTML = (u, size) => F.esc(F.fullName(u)) + F.badgeHTML(u, size);
+  F.handle = u => u && u.username ? '@' + u.username : '';
+  F.byUsername = name => { const n = String(name || '').replace(/^@/, '').toLowerCase(); return n ? F.allUsers().find(u => u.username === n) : null; };
+  F.isAdmin = () => { const m = F.me(); return !!(m && m.isAdmin); };
+  F.USERNAME_RE = /^[a-z][a-z0-9_]{4,31}$/;
+  F.usernameProblem = v => {
+    v = String(v || '').trim().toLowerCase();
+    if (v.length < 5) return 'Не короче 5 символов';
+    if (v.length > 32) return 'Не длиннее 32 символов';
+    if (!/^[a-z]/.test(v)) return 'Должен начинаться с латинской буквы';
+    if (!F.USERNAME_RE.test(v)) return 'Только латиница, цифры и «_»';
+    return '';
+  };
   F.community = id => F.db().communities.find(c => c.id === id);
   F.members = c => (c.base || 0) + c.members.length;
   const avCache = {};
@@ -257,13 +286,14 @@
     const ov = document.createElement('div'); ov.className = 'modal-ov';
     ov.innerHTML = `<div class="modal card${o.wide ? ' wide' : ''}" role="dialog" aria-modal="true"><div class="modal-head"><h3>${F.esc(o.title || '')}</h3><button class="icon-btn" data-close aria-label="Закрыть">${F.ic('close')}</button></div><div class="modal-body">${o.body || ''}</div>${o.actions ? '<div class="modal-foot"></div>' : ''}</div>`;
     document.body.appendChild(ov); document.body.classList.add('no-scroll');
-    const onKey = e => { if (e.key === 'Escape') api.close(); };
+    const onKey = e => { if (e.key === 'Escape' && !o.locked) api.close(); };
     const api = {
       el: ov.firstElementChild, body: ov.querySelector('.modal-body'),
       close() { if (!ov.isConnected) return; ov.remove(); document.removeEventListener('keydown', onKey); if (!$('.modal-ov')) document.body.classList.remove('no-scroll'); if (o.onClose) o.onClose(); }
     };
     document.addEventListener('keydown', onKey);
-    ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) api.close(); });
+    if (o.locked) { const x = ov.querySelector('[data-close]'); if (x) x.remove(); }
+    ov.addEventListener('click', e => { if (!o.locked && (e.target === ov || e.target.closest('[data-close]'))) api.close(); });
     if (o.actions) {
       const foot = ov.querySelector('.modal-foot');
       o.actions.forEach(a => { const b = document.createElement('button'); b.className = 'btn ' + (a.cls || ''); b.textContent = a.label; b.addEventListener('click', () => a.onClick ? a.onClick(api) : api.close()); foot.appendChild(b); });
@@ -348,7 +378,7 @@
 
   F.mount = (key, opts) => {
     opts = opts || {}; const me = F.me();
-    const nav = NAV.map(n => `<a class="nav-item${n[0] === key ? ' active' : ''}" href="${n[0]}.html">${F.ic(n[2])}<span>${n[1]}</span>${n[3] ? `<b class="badge" data-badge="${n[3]}" hidden></b>` : ''}</a>`).join('');
+    const nav = (F.isAdmin() ? NAV.concat([['admin', 'Админ-панель', 'shield']]) : NAV).map(n => `<a class="nav-item${n[0] === key ? ' active' : ''}" href="${n[0]}.html">${F.ic(n[2])}<span>${n[1]}</span>${n[3] ? `<b class="badge" data-badge="${n[3]}" hidden></b>` : ''}</a>`).join('');
     const bn = (h, l, ic, b) => `<a href="${h}.html" class="${key === h ? 'active' : ''}">${F.ic(ic, 22)}<span>${l}</span>${b ? `<b class="badge" data-badge="${b}" hidden></b>` : ''}</a>`;
     document.body.insertAdjacentHTML('beforeend', `
 <header class="topbar">
@@ -376,9 +406,10 @@
     const inp = $('#gsearch'), box = $('#gres');
     inp.addEventListener('input', () => {
       const q = inp.value.trim().toLowerCase(); if (!q) { box.hidden = true; return; }
-      const us = F.allUsers().filter(u => u.id !== me.id && F.fullName(u).toLowerCase().includes(q)).slice(0, 5);
+      const qu = q.replace(/^@/, '');
+      const us = F.allUsers().filter(u => u.id !== me.id && (F.fullName(u).toLowerCase().includes(q) || (u.username && u.username.includes(qu)))).slice(0, 5);
       const cs = F.db().communities.filter(c => c.name.toLowerCase().includes(q)).slice(0, 4);
-      box.innerHTML = (us.length ? '<div class="sr-h">Люди</div>' + us.map(u => `<a href="profile.html?id=${u.id}"><img class="ava ava-s" src="${F.avatar(u)}" alt="">${F.esc(F.fullName(u))}</a>`).join('') : '') +
+      box.innerHTML = (us.length ? '<div class="sr-h">Люди</div>' + us.map(u => `<a href="profile.html?id=${u.id}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><span>${F.nameHTML(u, 14)}${u.username ? `<small class="muted"> @${F.esc(u.username)}</small>` : ''}</span></a>`).join('') : '') +
         (cs.length ? '<div class="sr-h">Сообщества</div>' + cs.map(c => `<a href="community.html?id=${c.id}"><img class="ava ava-s" style="border-radius:10px" src="${F.cAvatar(c)}" alt="">${F.esc(c.name)}</a>`).join('') : '') ||
         '<div class="sr-h">Ничего не найдено</div>';
       box.hidden = false;
@@ -394,10 +425,10 @@
     const pop = d.communities.slice().sort((a, b) => F.members(b) - F.members(a)).slice(0, 3);
     el.innerHTML = `
 <section class="card card-pad"><a href="profile.html" class="rowitem" style="color:inherit"><span class="ava-wrap"><img class="ava ava-l" src="${F.avatar(me)}" alt=""><i class="online-dot"></i></span>
-  <span class="grow"><b style="font-size:17px">${F.esc(me.first)}</b><span class="on-text">Online</span></span></a>
+  <span class="grow"><b style="font-size:17px">${F.esc(me.first)}${F.badgeHTML(me, 16)}</b>${me.username ? `<span class="muted small" style="display:block">@${F.esc(me.username)}</span>` : ''}<span class="on-text">Online</span></span></a>
   <a class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" href="profile.html?edit=1">Редактировать профиль</a></section>
 <section class="card card-pad"><div class="sec-title">Друзья онлайн <a href="friends.html?tab=online">${online.length ? 'все' : ''}</a></div>
-  ${online.length ? online.map(u => `<div class="rowitem"><a class="ava-wrap" href="profile.html?id=${u.id}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><i class="online-dot" style="width:10px;height:10px"></i></a><a class="grow" style="color:var(--ink)" href="profile.html?id=${u.id}"><b>${F.esc(F.fullName(u))}</b></a><a class="icon-btn" style="width:30px;height:30px" href="messages.html?u=${u.id}" title="Написать">${F.ic('chat', 18)}</a></div>`).join('') : '<div class="muted small">Сейчас никого нет онлайн</div>'}</section>
+  ${online.length ? online.map(u => `<div class="rowitem"><a class="ava-wrap" href="profile.html?id=${u.id}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><i class="online-dot" style="width:10px;height:10px"></i></a><a class="grow" style="color:var(--ink)" href="profile.html?id=${u.id}"><b>${F.nameHTML(u, 13)}</b></a><a class="icon-btn" style="width:30px;height:30px" href="messages.html?u=${u.id}" title="Написать">${F.ic('chat', 18)}</a></div>`).join('') : '<div class="muted small">Сейчас никого нет онлайн</div>'}</section>
 <section class="card card-pad"><div class="sec-title">Популярные сообщества <a href="communities.html">все</a></div>
   ${pop.length ? '' : '<div class="muted small">Сообществ пока нет. <a href="communities.html">Создать первое</a></div>'}${pop.map(c => `<a class="rowitem" href="community.html?id=${c.id}"><img class="ava ava-m" style="border-radius:14px" src="${F.cAvatar(c)}" alt=""><span class="grow"><b>${F.esc(c.name)}</b><span class="muted small">${F.fmtCount(F.members(c))} подписчиков</span></span></a>`).join('')}</section>`;
   };
@@ -414,6 +445,22 @@
     document.body.insertAdjacentHTML('beforeend', `<div class="loader"><div class="loader-box card card-pad center" style="max-width:420px">${F.logoMark(60)}<h2 class="hand" style="margin:8px 0;font-size:26px">Не получилось открыть сайт</h2><p class="muted">${F.esc(msg)}</p><button class="btn" onclick="location.reload()">Попробовать снова</button>${canLogout ? '<p><button class="link-btn" id="fatal-out">Выйти из аккаунта</button></p>' : ''}</div></div>`);
     const b = $('#fatal-out'); if (b) b.onclick = () => F.logout();
   };
+  /** Окно выбора юзернейма (нельзя закрыть, пока не выбран). */
+  F.askUsername = () => {
+    let timer = null, ok = false;
+    F.modal({ title: 'Выберите юзернейм', locked: true,
+      body: `<p class="muted small" style="margin-top:0">Это ваше уникальное имя вида @name. По нему вас смогут найти. Только латиница, цифры и «_», от 5 до 32 символов.</p>
+<div class="form-row"><label>Юзернейм</label><input class="input" id="u-n" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, ivan_petrov"></div><div class="form-msg" id="u-m"></div>`,
+      onOpen: m => {
+        const inp = F.$('#u-n', m.body), msg = F.$('#u-m', m.body);
+        inp.addEventListener('input', () => { ok = false; clearTimeout(timer); timer = setTimeout(async () => { const r = await F.checkUsername(inp.value); ok = r.ok; msg.className = 'form-msg ' + (r.ok ? 'ok' : 'err'); msg.textContent = r.text; }, 350); });
+      },
+      actions: [{ label: 'Занять юзернейм', onClick: async m => {
+        const inp = F.$('#u-n', m.body), msg = F.$('#u-m', m.body);
+        const r = await F.setUsername(inp.value);
+        if (r.ok) { m.close(); F.toast('Юзернейм @' + inp.value.trim().toLowerCase() + ' ваш'); const pn = F.$('#p-handle'); if (pn) pn.textContent = F.handle(F.me()); } else { msg.className = 'form-msg err'; msg.textContent = r.text; }
+      } }] });
+  };
   /** Страница для авторизованных. fn(content, right, me) вызывается, когда данные загружены. */
   F.page = (key, opts, fn) => ready(async () => {
     F.applyPrefs(); F.decor(); F.showLoader();
@@ -422,6 +469,9 @@
     F.applyPrefs(); F.hideLoader(); F.mount(key, opts || {});
     if (fn) fn(F.$('#content'), F.$('#right'), F.me());
     F.live();
+    const m = F.me();
+    if (m.banned) document.body.insertAdjacentHTML('afterbegin', `<div class="ban-bar">Ваш аккаунт заблокирован администратором${m.banReason ? ': ' + F.esc(m.banReason) : ''}. Вы можете читать, но не можете публиковать.</div>`);
+    if (!m.username) F.askUsername();
   });
   /** Страница входа/регистрации. fn({recovery}) вызывается, если пользователь не вошёл. */
   F.publicPage = fn => ready(async () => {

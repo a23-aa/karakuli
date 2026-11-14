@@ -26,7 +26,7 @@
       dlgs.innerHTML = arr.length ? arr.map(t => {
         const u = F.user(t.other), l = t.last;
         return `<div class="dlg${t.other === cur ? ' active' : ''}" data-u="${t.other}"><span class="ava-wrap"><img class="ava ava-m" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot" style="width:11px;height:11px"></i>' : ''}</span>
-<div class="grow"><div class="top"><b>${F.esc(F.fullName(u))}</b><span class="time">${l ? F.shortTime(l.ts) : ''}</span></div><div class="bt"><span class="last">${l ? (l.from === me.id ? 'Вы: ' : '') + (l.photo && !l.text ? '📷 Фото' : F.esc(l.text)) : 'Новый диалог'}</span>${t.unread ? `<b class="badge" style="margin:0">${t.unread}</b>` : ''}</div></div></div>`;
+<div class="grow"><div class="top"><b>${F.nameHTML(u, 14)}</b><span class="time">${l ? F.shortTime(l.ts) : ''}</span></div><div class="bt"><span class="last">${l ? (l.from === me.id ? 'Вы: ' : '') + (l.photo && !l.text ? '📷 Фото' : F.esc(l.text)) : 'Новый диалог'}</span>${t.unread ? `<b class="badge" style="margin:0">${t.unread}</b>` : ''}</div></div></div>`;
       }).join('') : `<div class="chat-empty">${filter === 'unread' ? 'Непрочитанных нет' : 'Диалогов пока нет'}</div>`;
     }
     function renderPane(keepInput) {
@@ -42,7 +42,7 @@
       });
       if (keepInput && F.$('#msgs', pane)) { const box = F.$('#msgs', pane), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80; box.innerHTML = html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'; if (atEnd) box.scrollTop = box.scrollHeight; return; }
       pane.innerHTML = `<div class="chat-head"><button class="icon-btn chat-back" id="back" aria-label="Назад">${F.ic('back')}</button><a href="profile.html?id=${u.id}"><img class="ava ava-m" src="${F.avatar(u)}" alt=""></a>
-<div class="grow"><a href="profile.html?id=${u.id}" style="color:var(--ink);font-weight:800">${F.esc(F.fullName(u))}</a><div>${F.isOnline(u) ? '<span class="on-text">online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div></div>
+<div class="grow"><a href="profile.html?id=${u.id}" style="color:var(--ink);font-weight:800">${F.nameHTML(u, 15)}</a><div>${F.isOnline(u) ? '<span class="on-text">online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div></div>
 <div class="msgs" id="msgs">${html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'}</div>
 <div class="chat-attach" id="att" hidden></div>
 <div class="chat-input"><button class="icon-btn" id="pick" title="Прикрепить фото" aria-label="Прикрепить фото">${F.ic('photo', 22)}</button><textarea class="input" id="mt" rows="1" maxlength="2000" placeholder="Написать сообщение…"></textarea><button class="btn" id="send" aria-label="Отправить">${F.ic('send', 18)}</button></div>`;

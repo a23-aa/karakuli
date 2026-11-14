@@ -282,3 +282,28 @@
 .loader-box{text-align:center;color:var(--ink)}
 .loader-box svg{animation:wiggle 1.2s ease-in-out infinite}
 @keyframes wiggle{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) scale(1.06)}}
+
+/* ---------- галочки, юзернеймы, админка ---------- */
+.vbadge{display:inline-flex;vertical-align:-3px;margin-left:4px;line-height:0;cursor:help;filter:drop-shadow(0 1px 0 rgba(30,40,90,.25))}
+.vbadge svg{display:block}
+.handle{color:var(--muted);font-weight:700;margin-top:1px}
+.search-results a span small{font-weight:600}
+.ban-bar{background:#ffe3e3;color:#9b1c1c;border-bottom:2px solid #e07a7a;padding:8px 16px;text-align:center;font-weight:700;position:relative;z-index:60}
+.form-msg.ok{color:#1f9d6b}
+.adm-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.adm-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.adm-stat{padding:14px;text-align:center}
+.adm-stat b{display:block;font-size:30px;font-family:var(--hand,inherit);color:var(--accent)}
+.adm-stat span{color:var(--muted);font-size:13px}
+.adm-stat.live b{color:#1f9d6b}
+.adm-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line,#cfd6ff)}
+.adm-row:last-child{border-bottom:0}
+.adm-row .grow{min-width:0}
+.adm-row .grow>div{overflow:hidden;text-overflow:ellipsis}
+.adm-actions{display:flex;gap:6px;flex-wrap:wrap}
+.adm-bars{display:flex;align-items:flex-end;gap:5px;height:110px;margin-top:8px}
+.adm-bars i{flex:1;background:var(--accent);border-radius:6px 6px 0 0;min-height:3px;position:relative}
+.adm-bars i em{position:absolute;top:-17px;left:0;right:0;text-align:center;font-style:normal;font-size:11px;color:var(--muted)}
+.tag{display:inline-block;border:1.5px solid currentColor;border-radius:8px;padding:0 6px;font-size:11px;font-weight:800;margin-left:6px;vertical-align:middle}
+.tag.red{color:#c0392b}
+.tag.gold{color:#b57d00}

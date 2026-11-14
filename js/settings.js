@@ -16,15 +16,21 @@
       if (tab === 'general') {
         box.innerHTML = `<h2 class="sec-title">Основные настройки</h2>
 <div class="form-grid"><div class="form-row"><label>Имя</label><input class="input" id="g-f" maxlength="30" value="${F.esc(me.first)}"></div><div class="form-row"><label>Фамилия</label><input class="input" id="g-l" maxlength="30" value="${F.esc(me.last)}"></div></div>
+<div class="form-row"><label>Юзернейм</label><input class="input" id="g-u" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" value="${F.esc(me.username || '')}" placeholder="например, ivan_petrov"><div class="form-msg" id="g-um" style="min-height:18px;margin-top:4px"></div></div>
 <div class="form-grid"><div class="form-row"><label>Дата рождения</label><input class="input" id="g-b" type="date" value="${F.esc(me.birth || '')}"></div><div class="form-row"><label>Город</label><input class="input" id="g-c" maxlength="50" value="${F.esc(me.city || '')}"></div></div>
 <div class="form-row"><label>Аватар</label><div style="display:flex;align-items:center;gap:12px"><img class="ava ava-l" id="g-av" src="${F.avatar(me)}" alt=""><button class="btn btn-ghost btn-sm" id="g-avb">Загрузить</button><button class="link-btn small" id="g-avr">Сбросить</button></div></div>
 <div class="form-msg" id="g-m"></div><button class="btn" id="g-save">Сохранить изменения</button>`;
         let av = me.avatar;
         F.$('#g-avb', box).onclick = async () => { const r = await F.pickImages(false, 400); if (r[0]) { av = r[0]; F.$('#g-av', box).src = av; } };
         F.$('#g-avr', box).onclick = () => { av = null; F.$('#g-av', box).src = F.avatarFor(me.id + me.first); };
-        F.$('#g-save', box).onclick = () => {
+        let ut = null; const gu = F.$('#g-u', box), gum = F.$('#g-um', box);
+        gu.addEventListener('input', () => { clearTimeout(ut); const v = gu.value.trim().toLowerCase(); if (!v || v === me.username) { gum.textContent = ''; return; }
+          ut = setTimeout(async () => { const r = await F.checkUsername(v); msg(gum, r.text, r.ok); }, 350); });
+        F.$('#g-save', box).onclick = async () => {
           const f = F.$('#g-f', box).value.trim(), l = F.$('#g-l', box).value.trim(), m = F.$('#g-m', box);
           if (!f || !l) { msg(m, 'Имя и фамилия обязательны'); return; }
+          const nu = gu.value.trim().toLowerCase();
+          if (nu && nu !== me.username) { const r = await F.setUsername(nu); if (!r.ok) { msg(gum, r.text); msg(m, 'Юзернейм не сохранён'); return; } gum.textContent = ''; }
           Object.assign(me, { first: f, last: l, birth: F.$('#g-b', box).value, city: F.$('#g-c', box).value.trim(), avatar: av });
           if (F.save()) { msg(m, 'Изменения сохранены', true); F.$('.top-ava img').src = F.avatar(me); }
         };

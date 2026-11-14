@@ -14,7 +14,7 @@
       if (c) return { name: c.name, href: 'community.html?id=' + c.id, ava: F.cAvatar(c), round: '14px' };
     }
     const u = F.user(p.authorId);
-    return { name: F.fullName(u), href: 'profile.html?id=' + p.authorId, ava: F.avatar(u), round: '50%' };
+    return { name: F.fullName(u), html: F.nameHTML(u, 15), href: 'profile.html?id=' + p.authorId, ava: F.avatar(u), round: '50%' };
   }
   function photosHTML(p) {
     if (!p.photos || !p.photos.length) return '';
@@ -25,7 +25,7 @@
     const o = getPost(p.repostOf);
     if (!o) return '<div class="repost muted">Запись удалена</div>';
     const a = authorInfo(o);
-    return `<div class="repost"><div class="post-head" style="margin-bottom:4px"><a href="${a.href}"><img class="ava ava-s" style="border-radius:${a.round}" src="${a.ava}" alt=""></a><div><a class="post-author" href="${a.href}">${F.esc(a.name)}</a><div class="muted small">${F.timeAgo(o.ts)}</div></div></div>${o.text ? `<div class="post-text">${NL(o.text)}</div>` : ''}${photosHTML(o)}</div>`;
+    return `<div class="repost"><div class="post-head" style="margin-bottom:4px"><a href="${a.href}"><img class="ava ava-s" style="border-radius:${a.round}" src="${a.ava}" alt=""></a><div><a class="post-author" href="${a.href}">${a.html || F.esc(a.name)}</a><div class="muted small">${F.timeAgo(o.ts)}</div></div></div>${o.text ? `<div class="post-text">${NL(o.text)}</div>` : ''}${photosHTML(o)}</div>`;
   }
   function canDelete(p, me) {
     if (p.authorId === me.id) return true;
@@ -42,12 +42,12 @@
     if (open) {
       comments = `<div class="comments">${p.comments.map(c => {
         const u = F.user(c.authorId);
-        return `<div class="comment"><a href="profile.html?id=${c.authorId}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""></a><div class="c-body"><a class="c-name" href="profile.html?id=${c.authorId}">${F.esc(F.fullName(u))}</a> <span>${NL(c.text)}</span><div class="muted small">${F.timeAgo(c.ts)}${(c.authorId === me.id || p.authorId === me.id) ? ` · <button class="link-btn" data-act="del-comment" data-cid="${c.id}">Удалить</button>` : ''}</div></div></div>`;
+        return `<div class="comment"><a href="profile.html?id=${c.authorId}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""></a><div class="c-body"><a class="c-name" href="profile.html?id=${c.authorId}">${F.nameHTML(u, 13)}</a> <span>${NL(c.text)}</span><div class="muted small">${F.timeAgo(c.ts)}${(c.authorId === me.id || p.authorId === me.id) ? ` · <button class="link-btn" data-act="del-comment" data-cid="${c.id}">Удалить</button>` : ''}</div></div></div>`;
       }).join('')}<form class="comment-form" data-act="comment-form"><img class="ava ava-s" src="${F.avatar(me)}" alt=""><input class="input" name="t" placeholder="Написать комментарий…" autocomplete="off" maxlength="500"><button class="icon-btn" type="submit" aria-label="Отправить">${F.ic('send')}</button></form></div>`;
     }
     return `<article class="card post" id="post-${p.id}" data-id="${p.id}">
 <header class="post-head"><a href="${a.href}"><img class="ava ava-m" style="border-radius:${a.round}" src="${a.ava}" alt=""></a>
-<div class="grow"><a class="post-author" href="${a.href}">${F.esc(a.name)}</a><div class="muted small">${F.timeAgo(p.ts)}</div></div>
+<div class="grow"><a class="post-author" href="${a.href}">${a.html || F.esc(a.name)}</a><div class="muted small">${F.timeAgo(p.ts)}</div></div>
 ${canDelete(p, me) ? `<button class="icon-btn" data-act="delete" title="Удалить запись" aria-label="Удалить запись">${F.ic('trash', 18)}</button>` : ''}</header>
 ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embedHTML(p) : ''}${photosHTML(p)}
 <div class="post-actions">

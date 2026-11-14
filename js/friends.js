@@ -10,7 +10,7 @@
 <div id="ftabs"></div><div id="flist"></div>`;
     const list = F.$('#flist', c);
     const users = ids => ids.map(F.user).filter(Boolean);
-    const match = u => !text || F.fullName(u).toLowerCase().includes(text.toLowerCase());
+    const match = u => !text || F.fullName(u).toLowerCase().includes(text.toLowerCase()) || (!!u.username && u.username.includes(text.toLowerCase().replace(/^@/, '')));
 
     function card(u, kind) {
       let btns;
@@ -22,7 +22,7 @@
       else if (me.incoming.includes(u.id)) btns = `<button class="btn btn-sm" data-f="accept" data-id="${u.id}">Принять</button>`;
       else btns = `<button class="btn btn-sm" data-f="add" data-id="${u.id}">${F.ic('plus', 16)} Добавить</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>`;
       return `<div class="card pcard"><a class="ava-wrap" href="profile.html?id=${u.id}"><img class="ava ava-l" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot"></i>' : ''}</a>
-<div class="grow"><a class="name" href="profile.html?id=${u.id}">${F.esc(F.fullName(u))}</a><div class="st">${F.esc(u.status || '')}</div><div class="btns">${btns}</div></div></div>`;
+<div class="grow"><a class="name" href="profile.html?id=${u.id}">${F.nameHTML(u, 16)}</a>${u.username ? `<div class="muted small">@${F.esc(u.username)}</div>` : ''}<div class="st">${F.esc(u.status || '')}</div><div class="btns">${btns}</div></div></div>`;
     }
 
     function render() {

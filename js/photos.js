@@ -26,7 +26,7 @@
 <div class="post-actions"><button class="act${liked ? ' liked' : ''}" data-v="like">${F.ic('heart', 18)}<span>${ph.likes.length}</span></button>
 <button class="act${saved ? ' saved' : ''}" data-v="save">${F.ic('bookmark', 18)}<span>${saved ? 'В закладках' : 'В закладки'}</span></button>
 ${ph.ownerId === me.id ? `<button class="act sp" data-v="del">${F.ic('trash', 18)}<span>Удалить</span></button>` : ''}</div>
-<div class="pv-comments">${ph.comments.length ? ph.comments.map(c => { const u = F.user(c.authorId); return `<div class="comment"><a href="profile.html?id=${c.authorId}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""></a><div class="c-body"><b>${F.esc(F.fullName(u))}</b> ${F.esc(c.text)}<div class="muted small">${F.timeAgo(c.ts)}</div></div></div>`; }).join('') : '<div class="muted small">Комментариев пока нет</div>'}</div>
+<div class="pv-comments">${ph.comments.length ? ph.comments.map(c => { const u = F.user(c.authorId); return `<div class="comment"><a href="profile.html?id=${c.authorId}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""></a><div class="c-body"><b>${F.nameHTML(u, 13)}</b> ${F.esc(c.text)}<div class="muted small">${F.timeAgo(c.ts)}</div></div></div>`; }).join('') : '<div class="muted small">Комментариев пока нет</div>'}</div>
 <form class="comment-form" data-v="form"><input class="input" name="t" placeholder="Комментарий…" autocomplete="off" maxlength="300"><button class="icon-btn" type="submit" aria-label="Отправить">${F.ic('send')}</button></form></aside></div>`;
       const box = F.$('.pv-comments', ov); box.scrollTop = box.scrollHeight;
     }

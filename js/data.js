@@ -110,7 +110,8 @@
         online: p.id === me || (p.show_online !== false && now - ts(p.last_seen) < 150000), bot: false,
         friends: [], incoming: [], outgoing: [], bookmarks: { posts: [], photos: [], links: [] },
         settings: { theme: s.theme || 'light', accent: s.accent || 'blue', privacy: { profile: p.privacy_profile || 'all', messages: p.privacy_messages || 'all', online: p.show_online !== false }, notify: Object.assign({}, def.notify, s.notify || {}) },
-        created: ts(p.created_at)
+        created: ts(p.created_at),
+        username: p.username || '', badge: p.badge || null, isAdmin: !!p.is_admin, banned: !!p.banned, banReason: p.ban_reason || ''
       };
       if (users[p.id]) { const keep = users[p.id]; Object.keys(keep).forEach(k => delete keep[k]); Object.assign(keep, nu); } else users[p.id] = nu;
     });
@@ -146,6 +147,29 @@
     });
     DB.notifications = d.notifications.map(n => ({ id: n.id, userId: n.user_id, type: n.type, fromId: n.from_id || n.community_id, ts: ts(n.created_at), read: !!n.is_read, link: n.link || '' }));
   }
+
+  /* ---------- юзернеймы ---------- */
+  /** Проверка юзернейма: { ok, text }. Формат проверяется на месте, занятость — в базе. */
+  F.checkUsername = async v => {
+    v = String(v || '').trim().toLowerCase();
+    const bad = F.usernameProblem(v); if (bad) return { ok: false, text: bad };
+    if (!sb) return { ok: false, text: 'Нет соединения' };
+    const r = await sb.rpc('username_available', { u: v });
+    if (r.error) return { ok: false, text: nice(r.error.message) };
+    return r.data ? { ok: true, text: '@' + v + ' свободен' } : { ok: false, text: 'Этот юзернейм занят или зарезервирован' };
+  };
+  /** Занять (или сменить) свой юзернейм. Занятость окончательно решает база. */
+  F.setUsername = async v => {
+    v = String(v || '').trim().toLowerCase();
+    const bad = F.usernameProblem(v); if (bad) return { ok: false, text: bad };
+    await F.flush();
+    const me = F.sessionId();
+    const r = await sb.from('profiles').update({ username: v }).eq('id', me);
+    if (r.error) return { ok: false, text: /duplicate|unique|reserved/i.test(r.error.message) ? 'Этот юзернейм занят или зарезервирован' : nice(r.error.message) };
+    const u = DB.users[me]; if (u) u.username = v;
+    if (loaded) last = toRows();
+    return { ok: true, text: '' };
+  };
 
   F.refresh = function () {
     if (!session) return Promise.resolve();

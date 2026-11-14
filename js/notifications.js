@@ -9,14 +9,14 @@
 
     function who(n) {
       if (n.type === 'community_post') { const cm = F.community(n.fromId); return cm ? { name: 'Сообщество ' + cm.name, ava: F.cAvatar(cm), round: '50%' } : null; }
-      const u = F.user(n.fromId); return u ? { name: F.fullName(u), ava: F.avatar(u), round: '50%' } : null;
+      const u = F.user(n.fromId); return u ? { name: F.fullName(u), html: F.nameHTML(u, 13), ava: F.avatar(u), round: '50%' } : null;
     }
     function render() {
       const all = mine(), list = only ? all.filter(n => !n.read) : all, unread = all.filter(n => !n.read).length;
       c.innerHTML = `<div class="toolbar"><h1 class="page-title">Уведомления</h1><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-a="filter">${only ? 'Показать все' : 'Только новые' + (unread ? ' (' + unread + ')' : '')}</button><button class="btn btn-sm" data-a="readall"${unread ? '' : ' disabled'}>${F.ic('check', 16)} Прочитать все</button></div></div>
 <section class="card" style="overflow:hidden">${list.length ? list.map(n => {
         const w = who(n); if (!w) return ''; const t = F.NTYPES[n.type] || { ic: 'bell', text: '' };
-        const txt = n.type === 'community_post' ? `<b>${F.esc(w.name)}</b> ${t.text}` : `<b>${F.esc(w.name)}</b> ${t.text}`;
+        const txt = `<b>${w.html || F.esc(w.name)}</b> ${t.text}`;
         return `<a class="notif${n.read ? '' : ' unread'}" href="${F.esc(n.link || '#')}" data-n="${n.id}"><span class="n-ic ${t.cls || ''}"><img src="${w.ava}" alt="" style="border-radius:${w.round}"></span><span class="grow"><div>${txt}</div><div class="muted small">${F.timeAgo(n.ts)}</div></span><span style="color:var(--accent)">${F.ic(t.ic, 20)}</span></a>`;
       }).join('') : `<div class="empty">${F.ic('bell', 40)}<div>${only ? 'Новых уведомлений нет' : 'Уведомлений пока нет'}</div></div>`}</section>`;
     }

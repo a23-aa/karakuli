@@ -95,14 +95,20 @@
     F.publicPage(() => {
       mountSocial();
       const form = F.$('#reg-form'), msg = F.$('#msg'), btn = F.$('button[type=submit]', form);
+      const un = form.uname, um = F.$('#umsg'); let utimer = null, uok = false;
+      un.addEventListener('input', () => { uok = false; clearTimeout(utimer); const v = un.value.trim(); if (!v) { um.textContent = ''; return; }
+        utimer = setTimeout(async () => { const r = await F.checkUsername(v); uok = r.ok; um.className = 'form-msg ' + (r.ok ? 'ok' : 'err'); um.textContent = r.text; }, 350); });
       form.addEventListener('submit', async e => {
         e.preventDefault(); msg.className = 'form-msg err'; msg.textContent = '';
         const first = form.first.value.trim(), last = form.last.value.trim(), email = form.email.value.trim(), p1 = form.pass.value, p2 = form.pass2.value;
-        const err = !first || !last ? 'Укажите имя и фамилию' : !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
+        const uname = un.value.trim().toLowerCase(), uprob = F.usernameProblem(uname);
+        const err = !first || !last ? 'Укажите имя и фамилию' : uprob ? 'Юзернейм: ' + uprob.toLowerCase() : !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
           : p1.length < 6 ? 'Пароль должен быть не короче 6 символов' : p1 !== p2 ? 'Пароли не совпадают' : '';
         if (err) { msg.textContent = err; return; }
         btn.disabled = true;
-        const r = await F.sb.auth.signUp({ email, password: p1, options: { data: { first_name: first, last_name: last }, emailRedirectTo: here('index.html') } });
+        const chk = await F.checkUsername(uname);
+        if (!chk.ok) { btn.disabled = false; um.className = 'form-msg err'; um.textContent = chk.text; msg.textContent = 'Выберите другой юзернейм'; return; }
+        const r = await F.sb.auth.signUp({ email, password: p1, options: { data: { first_name: first, last_name: last, username: uname }, emailRedirectTo: here('index.html') } });
         btn.disabled = false;
         if (r.error) { msg.textContent = authErr(r.error.message); return; }
         if (r.data.user && r.data.user.identities && r.data.user.identities.length === 0) { msg.textContent = 'Эта почта уже зарегистрирована'; return; }

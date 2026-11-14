@@ -3,8 +3,8 @@
   'use strict';
   if (document.body.dataset.page !== 'profile') return;
   const q = new URLSearchParams(location.search);
-  F.page(q.get('id') ? '' : 'profile', { right: false }, c => {
-    const uid = q.get('id') || F.sessionId();
+  F.page(q.get('id') || q.get('u') ? '' : 'profile', { right: false }, c => {
+    const uid = q.get('id') || (q.get('u') ? ((F.byUsername(q.get('u')) || {}).id || 'none') : F.sessionId());
     const me = F.me(), u = F.user(uid);
     if (!u) { c.innerHTML = `<div class="card empty">${F.ic('user', 40)}<div>Пользователь не найден</div><p><a class="btn" href="index.html">На главную</a></p></div>`; return; }
     const own = u.id === me.id;
@@ -25,7 +25,7 @@
       const showStats = !locked();
       head.innerHTML = `<section class="card profile-card"><div class="cover"><img src="${F.cover(u)}" alt="">${own ? `<button class="btn btn-ghost btn-sm" data-p="edit">${F.ic('photo', 16)} Сменить обложку</button>` : ''}</div>
 <div class="p-main"><span class="ava-wrap"><img class="ava ava-xl" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot" style="width:20px;height:20px;border-width:3px"></i>' : ''}</span>
-<div class="p-info"><h1>${F.esc(F.fullName(u))}</h1><div class="status-line${own ? ' own' : ''}" ${own ? 'data-p="status" title="Изменить статус"' : ''}>${F.esc(u.status || (own ? 'Установить статус' : ''))}</div>
+<div class="p-info"><h1>${F.nameHTML(u, 22)}</h1>${u.username ? `<div class="handle" id="p-handle">@${F.esc(u.username)}</div>` : ''}<div class="status-line${own ? ' own' : ''}" ${own ? 'data-p="status" title="Изменить статус"' : ''}>${F.esc(u.status || (own ? 'Установить статус' : ''))}</div>
 <div style="margin-top:3px">${F.isOnline(u) ? '<span class="on-text">Online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div>
 <div class="p-actions">${actions}</div></div>
 ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.friends.length, 'друг', 'друга', 'друзей')}</div><div><b>${photos().length}</b>${F.plural(photos().length, 'фотография', 'фотографии', 'фотографий')}</div><div><b>${wall().length}</b>${F.plural(wall().length, 'публикация', 'публикации', 'публикаций')}</div></div>` : '<div style="height:10px"></div>'}</section>`;
@@ -42,7 +42,7 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
         if (own) F.posts.composer(F.$('#comp', body), { onPublish: refreshAll });
         draw();
       } else if (tab === 'info') {
-        const rows = [['Имя', F.fullName(u)], ['Дата рождения', F.fmtBirth(u.birth)], ['Город', u.city], ['О себе', u.about], ['На сайте с', F.fmtDate(u.created || Date.now())]].filter(r => r[1]);
+        const rows = [['Имя', F.fullName(u)], ['Юзернейм', F.handle(u)], ['Дата рождения', F.fmtBirth(u.birth)], ['Город', u.city], ['О себе', u.about], ['На сайте с', F.fmtDate(u.created || Date.now())]].filter(r => r[1]);
         body.innerHTML = `<section class="card card-pad"><dl class="info-table">${rows.map(r => `<dt>${r[0]}</dt><dd>${F.esc(r[1]).replace(/\n/g, '<br>')}</dd>`).join('')}</dl>${own && !u.about ? '<p><button class="btn btn-ghost btn-sm" data-p="edit">Рассказать о себе</button></p>' : ''}</section>`;
       } else if (tab === 'friends') {
         const fr = u.friends.map(F.user).filter(Boolean);
