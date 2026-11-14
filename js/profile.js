@@ -17,12 +17,14 @@
 
     function renderHead() {
       let actions = '';
-      const folBtn = own ? '' : (F.isFollowing(u.id) ? '<button class="btn btn-ghost btn-sm" data-p="unfollow">Вы подписаны</button>' : '<button class="btn btn-ghost btn-sm" data-p="follow">Подписаться</button>');
+      const mi = (a, t, cls) => `<button${cls ? ` class="${cls}"` : ''} data-p="${a}">${t}</button>`, wr = `<a href="messages.html?u=${u.id}">Написать</a>`;
+      const fol = own ? null : (F.isFollowing(u.id) ? mi('unfollow', 'Отписаться') : mi('follow', 'Подписаться'));
+      /* одна главная кнопка, остальное в меню «⋯» */
       if (own) actions = `<button class="btn btn-sm" data-p="edit">${F.ic('edit', 16)} Редактировать профиль</button>`;
-      else if (me.friends.includes(u.id)) actions = `<a class="btn btn-sm" href="messages.html?u=${u.id}">${F.ic('chat', 16)} Написать</a><button class="btn btn-ghost btn-sm" data-p="remove">Удалить из друзей</button>${folBtn}`;
-      else if (me.incoming.includes(u.id)) actions = `<button class="btn btn-sm" data-p="accept">Принять заявку</button><button class="btn btn-ghost btn-sm" data-p="decline">Отклонить</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
-      else if (me.outgoing.includes(u.id)) actions = `<button class="btn btn-ghost btn-sm" data-p="cancel">Отменить заявку</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
-      else actions = `<button class="btn btn-sm" data-p="add">${F.ic('plus', 16)} Добавить в друзья</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
+      else if (me.friends.includes(u.id)) actions = `<a class="btn btn-sm" href="messages.html?u=${u.id}">${F.ic('chat', 16)} Написать</a>${F.menuHTML([fol, mi('remove', 'Удалить из друзей', 'danger')])}`;
+      else if (me.incoming.includes(u.id)) actions = `<button class="btn btn-sm" data-p="accept">Принять заявку</button>${F.menuHTML([mi('decline', 'Отклонить заявку'), wr, fol])}`;
+      else if (me.outgoing.includes(u.id)) actions = `<a class="btn btn-sm" href="messages.html?u=${u.id}">${F.ic('chat', 16)} Написать</a>${F.menuHTML([mi('cancel', 'Отменить заявку'), fol])}`;
+      else actions = `<button class="btn btn-sm" data-p="add">${F.ic('plus', 16)} Добавить в друзья</button>${F.menuHTML([wr, fol])}`;
       const showStats = !locked();
       head.innerHTML = `<section class="card profile-card"><div class="cover"><img src="${F.cover(u)}" alt="">${own ? `<button class="btn btn-ghost btn-sm" data-p="edit">${F.ic('photo', 16)} Сменить обложку</button>` : ''}</div>
 <div class="p-main"><span class="ava-wrap"><img class="ava ava-xl" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot" style="width:20px;height:20px;border-width:3px"></i>' : ''}</span>

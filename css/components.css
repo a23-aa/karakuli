@@ -271,7 +271,6 @@
 .tag.gold{color:#b57d00}
 
 /* ---------- портал ивентов ---------- */
-.portal-btn{color:var(--accent)}
 .portal-card{display:flex;gap:24px;align-items:center;padding:28px;background:linear-gradient(135deg,var(--accent),#8b6cf0);color:#fff;border:0;overflow:hidden}
 .portal-card.idle{background:linear-gradient(135deg,#6b7bd6,#9a8be6)}
 .portal-card .portal-art{flex:none;color:#fff}
@@ -298,3 +297,9 @@
   .portal-body h2{font-size:22px}
   .cd{font-size:30px}
 }
+
+/* фильтр-«чипы» */
+.chips{display:flex;gap:8px;margin:2px 0 10px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:0 14px;min-height:34px;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.menu-pop .menu-wrap{display:none}

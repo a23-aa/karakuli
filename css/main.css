@@ -50,24 +50,58 @@ button{font-family:inherit;color:inherit}
 .top-ava img{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);object-fit:cover}
 .icon-btn.burger{display:none}
 
-/* раскладка (без z-index, чтобы меню и нижняя панель жили на уровне страницы) */
-.layout{position:relative;max-width:1200px;margin:0 auto;padding:76px 16px 28px;display:grid;
-  grid-template-columns:220px minmax(0,1fr) 292px;gap:16px;align-items:start}
-.layout.no-right{grid-template-columns:220px minmax(0,1fr)}
+/* раскладка: меню у левого края, правая колонка у правого, лента по центру */
+:root{--pad:clamp(12px,2vw,36px)}
+.topbar{padding:0 var(--pad)}
+.layout{position:relative;max-width:none;margin:0;padding:76px var(--pad) 28px;display:grid;
+  grid-template-columns:232px minmax(0,1fr) 300px;gap:clamp(14px,1.6vw,28px);align-items:start}
+.layout.no-right{grid-template-columns:232px minmax(0,1fr)}
 .layout.no-right .right{display:none}
-.left{position:sticky;top:74px}
-.right{display:flex;flex-direction:column;gap:14px}
-#content{min-width:0;display:flex;flex-direction:column;gap:14px}
-.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:2px;border-radius:10px;color:var(--ink);font-weight:600;font-size:15px;position:relative}
+.left{position:sticky;top:74px;max-height:calc(100vh - 86px);overflow:auto;scrollbar-width:thin}
+.right{display:flex;flex-direction:column;gap:14px;position:sticky;top:74px;max-height:calc(100vh - 86px);overflow:auto;scrollbar-width:none}
+#content{min-width:0;display:flex;flex-direction:column;gap:14px;width:100%;max-width:1040px;margin-inline:auto}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:2px;border-radius:10px;color:var(--ink);font-weight:600;font-size:15px;position:relative;cursor:pointer}
 @media (hover:hover){.nav-item:hover{background:var(--soft2);text-decoration:none}}
 .nav-item.active{background:var(--card);box-shadow:var(--shadow);color:var(--accent-d);font-weight:700}
 .nav-item .ic{color:var(--muted)}
 .nav-item.active .ic{color:var(--accent)}
 .badge{margin-left:auto;background:var(--pink);color:#fff;font-size:11.5px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;padding:0 6px}
 .nav-sep{height:1px;background:var(--line);margin:10px 8px}
-.nav-btn{width:100%;background:none;border:0;cursor:pointer;text-align:left}
+.nav-btn{width:100%;background:none;border:0;text-align:left;font-family:inherit}
+
+/* выделенная кнопка «Ивенты» */
+.nav-event{background:linear-gradient(120deg,var(--accent),#8b6cf0);color:#fff!important;margin-bottom:10px;padding:12px;box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 35%,transparent)}
+.nav-event .ic{color:#fff!important}
+.nav-event.active{background:linear-gradient(120deg,var(--accent-d),#7150dc);color:#fff}
+@media (hover:hover){.nav-event:hover{background:linear-gradient(120deg,var(--accent-d),#7150dc);text-decoration:none}}
+.nav-event.is-live .ic{animation:wiggle 1.6s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-14deg)}60%{transform:rotate(12deg)}}
+.ev-pill{margin-left:auto;background:rgba(255,255,255,.22);color:#fff;font-size:12px;font-weight:800;padding:2px 9px;border-radius:999px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev-pill.live{background:#fff;color:#e5484d;display:inline-flex;align-items:center;gap:5px}
+.ev-pill.live::before{content:"";width:7px;height:7px;border-radius:50%;background:#e5484d;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.portal-btn{display:none;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:999px;background:linear-gradient(120deg,var(--accent),#8b6cf0);color:#fff;font-weight:700}
+.portal-btn .ic{color:#fff}
+.portal-btn:hover{text-decoration:none}
+
+/* «Ещё» в меню */
+.nav-more{margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+.nav-more>summary{list-style:none}
+.nav-more>summary::-webkit-details-marker{display:none}
+.nav-more>summary::after{content:"▾";margin-left:auto;color:var(--muted);transition:transform .2s}
+.nav-more[open]>summary::after{transform:rotate(180deg)}
+
+/* меню «⋯» */
+.menu-wrap{position:relative;display:inline-block}
+.menu-btn{padding:0 10px}
+.menu-pop{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:210px;z-index:80;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--glow);padding:6px;flex-direction:column}
+.menu-wrap.open .menu-pop{display:flex}
+.menu-pop>*{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 12px;border:0;background:none;border-radius:8px;font:inherit;font-size:14.5px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;text-decoration:none}
+@media (hover:hover){.menu-pop>*:hover{background:var(--soft);text-decoration:none}}
+.menu-pop .danger{color:var(--danger)}
 
 .bottom-nav{display:none}
+
 .drawer-ov{display:none}
 
 .page-title{font-size:24px;font-weight:800;letter-spacing:-.3px}

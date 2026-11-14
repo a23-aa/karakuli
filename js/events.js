@@ -3,33 +3,6 @@
   'use strict';
   if (document.body.dataset.page !== 'events') return;
 
-  /** Серверное время: поправка к часам устройства, чтобы таймеры у всех совпадали. */
-  F.events = {
-    offset: 0,
-    now() { return Date.now() + this.offset; },
-    async sync() {
-      try { const r = await F.sb.rpc('server_time'); if (!r.error && r.data) this.offset = Date.parse(r.data) - Date.now(); } catch (e) { /* остаются часы устройства */ }
-    },
-    /** Идущие и будущие ивенты, ближайшие первыми. */
-    async load() {
-      const iso = new Date(this.now() - 1000).toISOString();
-      const r = await F.sb.from('events').select('*').gte('ends_at', iso).order('starts_at', { ascending: true }).limit(20);
-      if (r.error) throw new Error(r.error.message);
-      return r.data || [];
-    },
-    state(list) {
-      const t = this.now(), P = e => Date.parse(e.starts_at), Q = e => Date.parse(e.ends_at);
-      const active = list.find(e => P(e) <= t && t < Q(e)) || null;
-      const next = list.filter(e => P(e) > t).sort((a, b) => P(a) - P(b))[0] || null;
-      return { active, next };
-    },
-    /** 93784000 → «1 д 02:03:04» */
-    clock(ms) {
-      ms = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(ms / 86400), h = Math.floor(ms % 86400 / 3600), m = Math.floor(ms % 3600 / 60), s = ms % 60, z = n => String(n).padStart(2, '0');
-      return (d ? d + ' д ' : '') + z(h) + ':' + z(m) + ':' + z(s);
-    }
-  };
-
   F.page('events', { right: false }, c => {
     const E = F.events, me = F.me();
     let list = [], tick = null, failed = false, timer = null;

@@ -56,6 +56,7 @@
     groups: '<circle cx="12" cy="8" r="3"/><path d="M7 20c0-3 2-5 5-5s5 2 5 5 M5 9.5a2.5 2.5 0 1 0 .5 4.5 M19 9.5a2.5 2.5 0 1 1-.5 4.5"/>',
     photo: '<path d="M4 7h4l2-2.5h4L16 7h4v12H4z"/><circle cx="12" cy="13" r="3.6"/>',
     portal: '<ellipse cx="12" cy="12" rx="6.5" ry="9.5"/><ellipse cx="12" cy="12" rx="2.6" ry="5.6"/><path d="M3 4.5l.6 1.4 1.4.6-1.4.6L3 8.5l-.6-1.4L1 6.5l1.4-.6zM21 15.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
+    more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
     shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
     settings: '<path d="M4 7h9 M17 7h3 M4 17h3 M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     bell: '<path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21h4"/>',
@@ -376,12 +377,73 @@
   };
 
   /* ---------- оболочка страницы ---------- */
-  const NAV = [['index', 'Главная', 'home'], ['profile', 'Моя страница', 'user'], ['news', 'Новости', 'news'], ['messages', 'Сообщения', 'chat', 'msg'], ['friends', 'Друзья', 'friends', 'fr'],
-    ['events', 'Ивенты', 'portal'], ['communities', 'Сообщества', 'groups'], ['photos', 'Фотографии', 'photo'], ['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings']];
+  /* основное меню; остальное спрятано в «Ещё» */
+  const NAV = [['index', 'Главная', 'home'], ['news', 'Новости', 'news'], ['profile', 'Моя страница', 'user'], ['messages', 'Сообщения', 'chat', 'msg'], ['friends', 'Друзья', 'friends', 'fr'], ['communities', 'Сообщества', 'groups'], ['photos', 'Фотографии', 'photo']];
+  const NAV_MORE = [['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings']];
+
+  /* ---------- ивенты: общее время и «пилюля» с таймером в меню ---------- */
+  F.events = {
+    offset: 0,
+    now() { return Date.now() + this.offset; },
+    async sync() { try { const r = await F.sb.rpc('server_time'); if (!r.error && r.data) this.offset = Date.parse(r.data) - Date.now(); } catch (e) { /* часы устройства */ } },
+    async load() {
+      const iso = new Date(this.now() - 1000).toISOString();
+      const r = await F.sb.from('events').select('*').gte('ends_at', iso).order('starts_at', { ascending: true }).limit(20);
+      if (r.error) throw new Error(r.error.message);
+      return r.data || [];
+    },
+    state(list) {
+      const t = this.now(), P = e => Date.parse(e.starts_at), Q = e => Date.parse(e.ends_at);
+      return { active: list.find(e => P(e) <= t && t < Q(e)) || null, next: list.filter(e => P(e) > t).sort((a, b) => P(a) - P(b))[0] || null };
+    },
+    /** 93784000 → «1 д 02:03:04» */
+    clock(ms) {
+      ms = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(ms / 86400), h = Math.floor(ms % 86400 / 3600), m = Math.floor(ms % 3600 / 60), sec = ms % 60, z = n => String(n).padStart(2, '0');
+      return (d ? d + ' д ' : '') + z(h) + ':' + z(m) + ':' + z(sec);
+    },
+    /** Коротко для пилюли: «12:03», «3 д 04 ч». */
+    short(ms) {
+      ms = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(ms / 86400), h = Math.floor(ms % 86400 / 3600), m = Math.floor(ms % 3600 / 60), sec = ms % 60, z = n => String(n).padStart(2, '0');
+      return d ? d + ' д ' + z(h) + ' ч' : h ? h + ':' + z(m) + ':' + z(sec) : z(m) + ':' + z(sec);
+    }
+  };
+  F.PIXEL_KINDS = { team_war: 'TEAM WAR', territory_rush: 'TERRITORY RUSH', pixel_domination: 'PIXEL DOMINATION' };
+  /** Кнопка «Ивенты» везде показывает: идёт ивент или сколько до ближайшего. */
+  F.eventPulse = async () => {
+    const pills = F.$$('[data-evpill]'); if (!pills.length) return;
+    const E = F.events; let list = [], tickT = null;
+    const paint = () => {
+      const { active, next } = E.state(list), t = E.now();
+      pills.forEach(el => {
+        const host = el.closest('a');
+        if (active) { el.hidden = false; el.className = 'ev-pill live'; el.textContent = E.short(Date.parse(active.ends_at) - t); if (host) { host.classList.add('is-live'); host.title = 'Идёт: ' + active.title; } }
+        else if (next) { el.hidden = false; el.className = 'ev-pill'; el.textContent = E.short(Date.parse(next.starts_at) - t); if (host) { host.classList.remove('is-live'); host.title = 'Скоро: ' + next.title; } }
+        else { el.hidden = true; if (host) host.classList.remove('is-live'); }
+      });
+      // момент смены состояния — перечитать
+      if ((active && Date.parse(active.ends_at) - t < 0) || (next && Date.parse(next.starts_at) - t < 0)) refresh();
+    };
+    const refresh = async () => { try { list = await E.load(); } catch (e) { list = []; } paint(); };
+    await E.sync(); await refresh();
+    tickT = setInterval(paint, 1000); setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+  };
+
+  /* выпадающее меню «⋯» (кнопки второго плана) */
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-menu]');
+    document.querySelectorAll('.menu-wrap.open').forEach(w => { if (!t || w !== t.closest('.menu-wrap')) w.classList.remove('open'); });
+    if (t) { e.preventDefault(); t.closest('.menu-wrap').classList.toggle('open'); }
+    else if (e.target.closest('.menu-pop')) { const w = e.target.closest('.menu-wrap'); if (w) setTimeout(() => w.classList.remove('open'), 0); }
+  });
+  /** HTML меню «⋯»: items = ['<button data-…>Текст</button>', …] */
+  F.menuHTML = items => items.length ? `<span class="menu-wrap"><button class="btn btn-ghost btn-sm menu-btn" data-menu aria-label="Ещё действия" aria-haspopup="true">${F.ic('more', 18)}</button><span class="menu-pop" role="menu">${items.join('')}</span></span>` : '';
 
   F.mount = (key, opts) => {
     opts = opts || {}; const me = F.me();
-    const nav = (F.isAdmin() ? NAV.concat([['admin', 'Админ-панель', 'shield']]) : NAV).map(n => `<a class="nav-item${n[0] === key ? ' active' : ''}" href="${n[0]}.html">${F.ic(n[2])}<span>${n[1]}</span>${n[3] ? `<b class="badge" data-badge="${n[3]}" hidden></b>` : ''}</a>`).join('');
+    const item = n => `<a class="nav-item${n[0] === key ? ' active' : ''}" href="${n[0]}.html">${F.ic(n[2])}<span>${n[1]}</span>${n[3] ? `<b class="badge" data-badge="${n[3]}" hidden></b>` : ''}</a>`;
+    const more = NAV_MORE.concat(F.isAdmin() ? [['admin', 'Админ-панель', 'shield']] : []);
+    const nav = `<a class="nav-item nav-event${key === 'events' || key === 'battle' ? ' active' : ''}" href="events.html">${F.ic('portal', 22)}<span>Ивенты</span><b class="ev-pill" data-evpill hidden></b></a>` + NAV.map(item).join('') +
+      `<details class="nav-more"${more.some(n => n[0] === key) ? ' open' : ''}><summary class="nav-item">${F.ic('more')}<span>Ещё</span></summary>${more.map(item).join('')}<button class="nav-item nav-btn" id="logout">${F.ic('logout')}<span>Выйти</span></button></details>`;
     const bn = (h, l, ic, b) => `<a href="${h}.html" class="${key === h ? 'active' : ''}">${F.ic(ic, 22)}<span>${l}</span>${b ? `<b class="badge" data-badge="${b}" hidden></b>` : ''}</a>`;
     document.body.insertAdjacentHTML('beforeend', `
 <header class="topbar">
@@ -389,19 +451,18 @@
   ${F.logoHTML()}
   <div class="search">${F.ic('search', 18)}<input id="gsearch" type="search" placeholder="Поиск" aria-label="Поиск" autocomplete="off"><div class="search-results" id="gres" hidden></div></div>
   <div class="top-right">
-    <a class="icon-btn portal-btn" href="events.html" title="Портал ивентов" aria-label="Портал ивентов">${F.ic('portal', 22)}</a>
+    <a class="portal-btn" href="events.html" title="Ивенты" aria-label="Ивенты">${F.ic('portal', 20)}<b class="ev-pill" data-evpill hidden></b></a>
     <a class="icon-btn" href="notifications.html" title="Уведомления" aria-label="Уведомления">${F.ic('bell', 22)}<b class="dot-badge" data-badge="nt" hidden></b></a>
     <a class="top-ava" href="profile.html" title="Моя страница"><img src="${F.avatar(me)}" alt=""></a>
   </div>
 </header>
 <div class="layout${opts.right ? '' : ' no-right'}${opts.rightMobile ? ' show-right-mobile' : ''}">
-  <aside class="left" id="left"><div class="drawer-logo" style="display:none;margin-bottom:10px">${F.logoHTML()}</div><nav>${nav}<div class="nav-sep"></div>
-    <button class="nav-item nav-btn" id="logout">${F.ic('logout')}<span>Выйти</span></button></nav></aside>
+  <aside class="left" id="left"><div class="drawer-logo" style="display:none;margin-bottom:10px">${F.logoHTML()}</div><nav>${nav}</nav></aside>
   <main id="content"></main>
   <aside class="right" id="right"></aside>
 </div>
 <div class="drawer-ov" id="dov"></div>
-<nav class="bottom-nav">${bn('index', 'Главная', 'home')}${bn('friends', 'Друзья', 'friends', 'fr')}${bn('messages', 'Сообщения', 'chat', 'msg')}${bn('profile', 'Профиль', 'user')}<button id="more" aria-label="Меню">${F.ic('menu', 22)}<span>Ещё</span></button></nav>`);
+<nav class="bottom-nav">${bn('index', 'Главная', 'home')}${bn('messages', 'Сообщения', 'chat', 'msg')}<a href="events.html" class="bn-event${key === 'events' ? ' active' : ''}">${F.ic('portal', 24)}<span>Ивенты</span><b class="ev-pill" data-evpill hidden></b></a>${bn('friends', 'Друзья', 'friends', 'fr')}<button id="more" aria-label="Меню">${F.ic('menu', 22)}<span>Ещё</span></button></nav>`);
     const closeDrawer = () => document.body.classList.remove('drawer-open');
     $('#burger').onclick = $('#more').onclick = () => document.body.classList.toggle('drawer-open');
     $('#dov').onclick = closeDrawer;
@@ -484,7 +545,7 @@ ${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни ро
     if (!F.me()) { location.replace('login.html'); return; }
     F.applyPrefs(); F.hideLoader(); F.mount(key, opts || {});
     if (fn) fn(F.$('#content'), F.$('#right'), F.me());
-    F.live();
+    F.live(); F.eventPulse();
     const m = F.me();
     if (m.banned) document.body.insertAdjacentHTML('afterbegin', `<div class="ban-bar">Ваш аккаунт заблокирован администратором${m.banReason ? ': ' + F.esc(m.banReason) : ''}. Вы можете читать, но не можете публиковать.</div>`);
     if (!m.username) F.askUsername();
