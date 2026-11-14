@@ -59,7 +59,7 @@
       c.addEventListener('click', e => {
         const t = e.target.closest('[data-t]'); if (t) { tab = t.dataset.t; render(); return; }
         const j = e.target.closest('[data-j]'); if (j) { toggleJoin(F.community(j.dataset.j)); render(); return; }
-        if (e.target.closest('#mk')) editModal(null, n => { location.href = 'community.html?id=' + n.id; });
+        if (e.target.closest('#mk')) editModal(null, n => { F.toast('Создаём сообщество…'); F.flush().then(() => { location.href = 'community.html?id=' + n.id; }); });
       });
       F.$('#cq', c).addEventListener('input', e => { text = e.target.value.trim().toLowerCase(); render(); });
       render();

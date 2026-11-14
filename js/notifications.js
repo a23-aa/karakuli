@@ -28,7 +28,7 @@
         render(); return;
       }
       const n = e.target.closest('[data-n]');
-      if (n) { const x = F.db().notifications.find(i => i.id === n.dataset.n); if (x && !x.read) { x.read = true; F.save(); } }
+      if (n) { const x = F.db().notifications.find(i => i.id === n.dataset.n); if (x && !x.read) { x.read = true; F.save(); e.preventDefault(); const href = n.getAttribute('href'); F.flush().then(() => { location.href = href; }); } }
     });
     window.addEventListener('karakuli:update', render);
     render();

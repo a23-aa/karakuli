@@ -9,14 +9,13 @@
 (function () {
   'use strict';
   const F = window.Karakuli = {};
-  const DB_KEY = 'karakuli_db_v1', SESSION_KEY = 'karakuli_session_v1', PREFS_KEY = 'karakuli_prefs_v1';
+  const PREFS_KEY = 'karakuli_prefs_v1';
 
   /* ---------- утилиты ---------- */
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   F.$ = $; F.$$ = $$;
   F.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  F.uid = p => (p || 'id') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   F.plural = (n, a, b, c) => { n = Math.abs(n) % 100; const m = n % 10; if (n > 10 && n < 20) return c; if (m > 1 && m < 5) return b; if (m === 1) return a; return c; };
   const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const pad = n => String(n).padStart(2, '0');
@@ -39,14 +38,6 @@
     return d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3);
   };
   F.fmtCount = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '') + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1000 ? (n / 1e3).toFixed(1).replace('.0', '') + 'K' : String(n);
-  F.hashPass = s => {
-    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-    for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
-  };
-  F.passHash = (email, pass) => F.hashPass(String(email).toLowerCase() + ':' + pass);
   const pick = a => a[Math.floor(Math.random() * a.length)];
   F.pick = pick;
 
@@ -171,31 +162,11 @@
     return (sceneCache[key] = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice"><g filter="url(#r)">${body}</g>${GRAIN(W, H, .22)}</svg>`));
   };
 
-  /* ---------- хранилище ---------- */
-  let DB = null;
-  const defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true } });
-  F.defaultSettings = defaultSettings;
+  /* ---------- данные: см. data.js (Supabase) ---------- */
+  F.defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true } });
 
-  function loadDB() {
-    try { const raw = localStorage.getItem(DB_KEY); if (raw) { const d = JSON.parse(raw); if (d && d.users) return d; } } catch (e) { /* повреждённые данные — пересоздаём */ }
-    const d = seedDB();
-    try { localStorage.setItem(DB_KEY, JSON.stringify(d)); } catch (e) { }
-    return d;
-  }
-  F.db = () => DB || (DB = loadDB());
-  F.reload = () => { DB = null; };
-  F.save = () => {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(F.db())); return true; }
-    catch (e) { F.toast('Не хватает места в браузере. Удалите несколько фотографий.'); return false; }
-  };
-  F.resetDemo = () => { localStorage.removeItem(DB_KEY); localStorage.removeItem(SESSION_KEY); DB = null; };
-  window.addEventListener('storage', e => { if (e.key === DB_KEY) { DB = null; F.badges(); window.dispatchEvent(new Event('karakuli:update')); } });
-
-  /* ---------- сессия и пользователи ---------- */
-  F.sessionId = () => localStorage.getItem(SESSION_KEY);
+  /* ---------- пользователи ---------- */
   F.me = () => { const id = F.sessionId(); return id ? (F.db().users[id] || null) : null; };
-  F.login = id => localStorage.setItem(SESSION_KEY, id);
-  F.logout = () => { localStorage.removeItem(SESSION_KEY); location.href = 'login.html'; };
   F.user = id => F.db().users[id];
   F.allUsers = () => Object.values(F.db().users);
   F.fullName = u => u ? (u.first + ' ' + u.last).trim() : 'Удалённый пользователь';
@@ -211,15 +182,6 @@
   const addU = (arr, v) => { if (!arr.includes(v)) arr.push(v); };
   const rm = (arr, v) => { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); };
 
-  F.createUser = o => {
-    const d = F.db(), id = F.uid('u');
-    d.users[id] = { id, first: o.first, last: o.last || '', email: o.email, pass: F.passHash(o.email, o.pass || (F.uid('x') + Math.random())),
-      status: '', about: '', city: '', birth: '', avatar: o.avatar || null, cover: null, online: true, bot: false,
-      provider: o.provider || null, providerId: o.providerId || null,
-      friends: [], incoming: [], outgoing: [], bookmarks: { posts: [], photos: [], links: [] }, settings: F.defaultSettings(), created: Date.now() };
-    return d.users[id];
-  };
-
   /* ---------- друзья ---------- */
   F.sendRequest = to => {
     const me = F.me(), u = F.user(to);
@@ -227,7 +189,6 @@
     if (me.incoming.includes(to)) return F.acceptRequest(to);
     me.outgoing.push(to); u.incoming.push(me.id);
     F.notify(to, 'friend_request', me.id, { link: 'friends.html?tab=incoming' });
-    if (u.bot) F.schedule(6000 + Math.random() * 8000, { t: 'accept', from: to, to: me.id });
     F.save(); F.badges();
   };
   F.acceptRequest = from => {
@@ -249,7 +210,6 @@
     const k = F.dkey(me.id, to), d = F.db();
     (d.messages[k] = d.messages[k] || []).push({ id: F.uid('m'), from: me.id, to, text: text || '', photo: photo || null, ts: Date.now(), read: false });
     F.notify(to, 'message', me.id, { link: 'messages.html?u=' + me.id });
-    if (u.bot) { F.schedule(2500 + Math.random() * 3500, { t: 'reply', from: to, to: me.id }); }
     if (!F.save()) { d.messages[k].pop(); return false; }
     return true;
   };
@@ -281,43 +241,6 @@
     $$('[data-badge]').forEach(el => { const n = c[el.dataset.badge] || 0; el.textContent = n > 99 ? '99+' : n; el.hidden = !n; });
   };
 
-  /* ---------- «живая» демо-активность друзей (боты) ---------- */
-  F.schedule = (ms, a) => { const d = F.db(); (d.pending = d.pending || []).push(Object.assign({ id: F.uid('q'), at: Date.now() + ms }, a)); };
-  const REPLIES = ['Привет! Как дела?', 'Ха-ха, понятно 😄', 'Отлично, спасибо!', 'Давай созвонимся вечером', 'Окей 👍', 'Посмотрю и отвечу позже', 'Класс, расскажи подробнее!', 'Ого, круто 😮'];
-  const CMTS = ['Классно! 👍', 'Очень красиво 😍', 'Круто!', 'Согласен(на) 😄', 'Ого, супер!', 'Ставлю лайк 💙'];
-  function runAction(a) {
-    const d = F.db(), bot = F.user(a.from);
-    if (!bot) return;
-    if (a.t === 'accept') {
-      const me = F.user(a.to); if (!me || !me.outgoing.includes(a.from)) return;
-      rm(me.outgoing, a.from); rm(bot.incoming, a.to); addU(me.friends, a.from); addU(bot.friends, a.to);
-      F.notify(a.to, 'friend_accept', a.from, { link: 'profile.html?id=' + a.from });
-    } else if (a.t === 'like') {
-      const p = d.posts.find(x => x.id === a.postId); if (!p || p.likes.includes(a.from)) return;
-      p.likes.push(a.from); F.notify(p.authorId, 'like', a.from, { link: 'index.html#post-' + p.id });
-    } else if (a.t === 'comment') {
-      const p = d.posts.find(x => x.id === a.postId); if (!p) return;
-      p.comments.push({ id: F.uid('c'), authorId: a.from, text: pick(CMTS), ts: Date.now() });
-      F.notify(p.authorId, 'comment', a.from, { link: 'index.html#post-' + p.id });
-    } else if (a.t === 'reply') {
-      const k = F.dkey(a.from, a.to);
-      (d.messages[k] = d.messages[k] || []).push({ id: F.uid('m'), from: a.from, to: a.to, text: pick(REPLIES), photo: null, ts: Date.now(), read: false });
-      F.notify(a.to, 'message', a.from, { link: 'messages.html?u=' + a.from });
-    }
-  }
-  F.tick = () => {
-    const d = F.db(); if (!d.pending || !d.pending.length) return;
-    const now = Date.now(), due = d.pending.filter(a => a.at <= now);
-    if (!due.length) return;
-    d.pending = d.pending.filter(a => a.at > now);
-    due.forEach(runAction);
-    F.save(); F.badges(); window.dispatchEvent(new Event('karakuli:update'));
-  };
-  F.botReactions = post => {
-    const me = F.me(); const bots = me.friends.map(F.user).filter(u => u && u.bot).sort(() => Math.random() - .5).slice(0, 3);
-    bots.forEach((b, i) => F.schedule(4000 + i * 3500 + Math.random() * 4000, { t: 'like', from: b.id, postId: post.id }));
-    if (bots[0] && Math.random() < .8) F.schedule(9000 + Math.random() * 7000, { t: 'comment', from: bots[0].id, postId: post.id });
-  };
   F.wallAlbum = uid => {
     const d = F.db(); let a = d.albums.find(x => x.ownerId === uid && x.system === 'wall');
     if (!a) { a = { id: F.uid('a'), ownerId: uid, name: 'Фотографии со стены', ts: Date.now(), system: 'wall' }; d.albums.push(a); }
@@ -481,23 +404,32 @@
 
   /* ---------- запуск страниц ---------- */
   const ready = fn => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn();
-  F.page = (key, opts, fn) => ready(() => {
-    F.applyPrefs(); F.decor();
+  F.showLoader = () => {
+    if ($('#loader')) return;
+    document.body.insertAdjacentHTML('beforeend', `<div id="loader" class="loader"><div class="loader-box">${F.logoMark(60)}<div class="hand" style="font-size:24px">Загружаем…</div></div></div>`);
+  };
+  F.hideLoader = () => { const l = $('#loader'); if (l) l.remove(); };
+  F.fatal = (msg, canLogout) => {
+    F.hideLoader();
+    document.body.insertAdjacentHTML('beforeend', `<div class="loader"><div class="loader-box card card-pad center" style="max-width:420px">${F.logoMark(60)}<h2 class="hand" style="margin:8px 0;font-size:26px">Не получилось открыть сайт</h2><p class="muted">${F.esc(msg)}</p><button class="btn" onclick="location.reload()">Попробовать снова</button>${canLogout ? '<p><button class="link-btn" id="fatal-out">Выйти из аккаунта</button></p>' : ''}</div></div>`);
+    const b = $('#fatal-out'); if (b) b.onclick = () => F.logout();
+  };
+  /** Страница для авторизованных. fn(content, right, me) вызывается, когда данные загружены. */
+  F.page = (key, opts, fn) => ready(async () => {
+    F.applyPrefs(); F.decor(); F.showLoader();
+    try { await F.init(); } catch (e) { console.error(e); F.fatal(e.message || 'Проверьте интернет-соединение.', !!F.sessionId()); return; }
     if (!F.me()) { location.replace('login.html'); return; }
-    F.tick(); F.mount(key, opts || {});
+    F.applyPrefs(); F.hideLoader(); F.mount(key, opts || {});
     if (fn) fn(F.$('#content'), F.$('#right'), F.me());
-    setInterval(F.tick, 4000);
+    F.live();
   });
-  F.publicPage = fn => ready(() => {
+  /** Страница входа/регистрации. fn({recovery}) вызывается, если пользователь не вошёл. */
+  F.publicPage = fn => ready(async () => {
     F.applyPrefs(); F.decor();
-    if (F.me()) { location.replace('index.html'); return; }
     document.querySelectorAll('[data-logo]').forEach(el => { el.outerHTML = F.logoHTML(); });
-    document.querySelectorAll('[data-scene]').forEach(el => { el.src = F.scene(el.dataset.scene, 7); });
-    if (fn) fn();
+    const recovery = /type=recovery/.test(location.hash);
+    try { await F.init({ light: true }); } catch (e) { console.error(e); F.fatal(e.message || 'Проверьте интернет-соединение.'); return; }
+    if (F.sessionId() && !recovery) { location.replace('index.html'); return; }
+    if (fn) fn({ recovery });
   });
-
-  /* ---------- пустая база ---------- */
-  function seedDB() {
-    return { v: 1, users: {}, posts: [], communities: [], albums: [], photos: [], messages: {}, notifications: [], pending: [] };
-  }
 })();

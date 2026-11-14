@@ -3,8 +3,8 @@
   'use strict';
   if (document.body.dataset.page !== 'profile') return;
   const q = new URLSearchParams(location.search);
-  const uid = q.get('id') || F.sessionId();
-  F.page(uid === F.sessionId() ? 'profile' : '', { right: false }, c => {
+  F.page(q.get('id') ? '' : 'profile', { right: false }, c => {
+    const uid = q.get('id') || F.sessionId();
     const me = F.me(), u = F.user(uid);
     if (!u) { c.innerHTML = `<div class="card empty">${F.ic('user', 40)}<div>Пользователь не найден</div><p><a class="btn" href="index.html">На главную</a></p></div>`; return; }
     const own = u.id === me.id;
@@ -74,7 +74,7 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
           const g = s => F.$(s, m.body).value.trim(), first = g('#e-first'), last = g('#e-last');
           if (!first || !last) { F.toast('Имя и фамилия обязательны'); return; }
           Object.assign(u, { first, last, status: g('#e-status'), birth: g('#e-birth'), city: g('#e-city'), about: g('#e-about'), avatar: av, cover: cv });
-          if (!F.save()) { F.reload(); return; } m.close(); F.toast('Профиль обновлён'); location.href = 'profile.html';
+          F.save(); m.close(); F.toast('Сохраняем…'); F.flush().then(() => { location.href = 'profile.html'; });
         } }] });
     }
     function statusModal() {

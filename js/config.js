@@ -1,14 +1,13 @@
-/* Каракули — настройки входа через сторонние сервисы.
-   Впишите ключи ниже. Пока ключ пустой, кнопка работает в демо-режиме
-   (форма «как будто вошли через сервис»), без настоящей проверки.
+/* Каракули — настройки подключения к Supabase.
+   URL и publishable-ключ можно хранить в открытом виде: защита данных держится
+   на правилах доступа (Row Level Security) из supabase/schema.sql.
+   НИКОГДА не вставляйте сюда secret / service_role ключ.
 
-   Google: console.cloud.google.com → API и сервисы → Учётные данные → Создать → Идентификатор клиента OAuth (Веб-приложение).
-           В «Разрешённые источники JavaScript» добавьте адрес сайта (https://ваш-сайт и http://localhost:8080).
-           Скопируйте «Client ID» (вида 123-abc.apps.googleusercontent.com) в googleClientId.
-   Работает только по http(s), не с файла file://. */
+   providers — какие кнопки входа показывать. Каждый способ нужно отдельно включить в
+   Supabase → Authentication → Sign In / Providers (инструкция в README). Доступны:
+   'google', 'github', 'discord', 'apple'. */
 window.KARAKULI_CONFIG = {
-  googleClientId: '',
-  vkClientId: '',
-  yandexClientId: '',
-  appleClientId: ''
+  supabaseUrl: 'https://dwqaopsvburojrjxrdls.supabase.co',
+  supabaseKey: 'sb_publishable_vh82N5s8_IjQBlqcZI7kDA_HXtwroyu',
+  providers: ['google', 'github', 'discord']
 };

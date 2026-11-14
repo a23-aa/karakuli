@@ -91,7 +91,6 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
           const p = { id: F.uid('p'), authorId: me.id, communityId: o.communityId || null, text, photos: imgs.slice(), ts: Date.now(), likes: [], comments: [], repostOf: null };
           d.posts.unshift(p);
           if (!p.communityId && imgs.length) { const al = F.wallAlbum(me.id); imgs.forEach(s => d.photos.unshift({ id: F.uid('ph'), ownerId: me.id, albumId: al.id, src: s, ts: Date.now(), likes: [], comments: [] })); }
-          if (!p.communityId) F.botReactions(p);
           if (!F.save()) { F.reload(); return; }
           ta.value = ''; imgs = []; drawPrev(); F.toast('Запись опубликована');
           if (o.onPublish) o.onPublish(p);

@@ -31,26 +31,21 @@
       } else if (tab === 'account') {
         box.innerHTML = `<h2 class="sec-title">Аккаунт</h2>
 <div class="form-row"><label>Электронная почта</label><input class="input" id="a-e" type="email" value="${F.esc(me.email)}"></div>
-<div class="form-row"><label>Текущий пароль (для подтверждения)</label><input class="input" id="a-p" type="password" autocomplete="current-password"></div>
 <div class="form-msg" id="a-m"></div><button class="btn" id="a-save">Изменить почту</button>
+<p class="muted small">Мы отправим письмо со ссылкой подтверждения. Почта сменится после перехода по ссылке.</p>
 <div class="nav-sep" style="margin:20px 0"></div>
 <h3 class="sec-title" style="color:var(--danger)">Удаление страницы</h3><p class="muted small">Страница, записи, фотографии и переписка будут удалены без возможности восстановления.</p>
 <button class="btn btn-danger" id="a-del">Удалить мою страницу</button>`;
-        F.$('#a-save', box).onclick = () => {
+        F.$('#a-save', box).onclick = async () => {
           const em = F.$('#a-e', box).value.trim(), m = F.$('#a-m', box);
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { msg(m, 'Введите корректную почту'); return; }
-          if (me.pass !== F.passHash(me.email, F.$('#a-p', box).value)) { msg(m, 'Неверный текущий пароль'); return; }
-          if (F.allUsers().some(u => u.id !== me.id && u.email.toLowerCase() === em.toLowerCase())) { msg(m, 'Эта почта уже занята'); return; }
-          const pass = F.$('#a-p', box).value; me.email = em; me.pass = F.passHash(em, pass); F.save(); msg(m, 'Почта изменена', true);
+          if (em.toLowerCase() === String(me.email).toLowerCase()) { msg(m, 'Это ваша текущая почта'); return; }
+          const r = await F.sb.auth.updateUser({ email: em }, { emailRedirectTo: new URL('settings.html', location.href).href });
+          if (r.error) msg(m, F.niceError(r.error.message)); else msg(m, 'Письмо отправлено на ' + em + '. Подтвердите смену почты по ссылке.', true);
         };
         F.$('#a-del', box).onclick = () => F.confirm('Удалить страницу навсегда? Это действие нельзя отменить.', 'Удалить навсегда').then(ok => {
-          if (!ok) return; const d = F.db(), id = me.id;
-          delete d.users[id];
-          Object.values(d.users).forEach(u => { ['friends', 'incoming', 'outgoing'].forEach(k => u[k] = u[k].filter(x => x !== id)); });
-          d.posts = d.posts.filter(p => p.authorId !== id); d.photos = d.photos.filter(p => p.ownerId !== id); d.albums = d.albums.filter(a => a.ownerId !== id);
-          d.communities.forEach(cm => { cm.members = cm.members.filter(x => x !== id); }); d.communities = d.communities.filter(cm => cm.creatorId !== id);
-          Object.keys(d.messages).forEach(k => { if (k.split('_').includes(id)) delete d.messages[k]; });
-          d.notifications = d.notifications.filter(n => n.userId !== id && n.fromId !== id); F.save(); localStorage.removeItem('karakuli_session_v1'); location.href = 'register.html';
+          if (!ok) return;
+          F.deleteAccount().catch(e => F.toast('Не удалось удалить: ' + F.niceError(e.message)));
         });
       } else if (tab === 'privacy') {
         const p = s.privacy;
@@ -63,25 +58,30 @@ ${row('online', 'privacy', 'Показывать, что я онлайн', 'Ес
       } else if (tab === 'notify') {
         box.innerHTML = `<h2 class="sec-title">Уведомления</h2>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
       } else if (tab === 'security') {
-        box.innerHTML = `<h2 class="sec-title">Безопасность</h2><div class="form-row"><label>Текущий пароль</label><input class="input" id="s-o" type="password" autocomplete="current-password"></div>
+        const prov = ((F.authUser() || {}).app_metadata || {}).provider || 'email', byMail = prov === 'email';
+        box.innerHTML = `<h2 class="sec-title">Безопасность</h2>
+${byMail ? '<div class="form-row"><label>Текущий пароль</label><input class="input" id="s-o" type="password" autocomplete="current-password"></div>' : `<p class="muted small">Вы вошли через ${F.esc(prov)}. Можно задать пароль, чтобы входить ещё и по почте.</p>`}
 <div class="form-row"><label>Новый пароль</label><input class="input" id="s-n" type="password" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
 <div class="form-row"><label>Повторите новый пароль</label><input class="input" id="s-r" type="password" autocomplete="new-password"></div>
-<div class="form-msg" id="s-m"></div><button class="btn" id="s-save">Изменить пароль</button>
+<div class="form-msg" id="s-m"></div><button class="btn" id="s-save">${byMail ? 'Изменить пароль' : 'Задать пароль'}</button>
 <div class="nav-sep" style="margin:20px 0"></div><button class="btn btn-ghost" id="s-out">${F.ic('logout', 16)} Выйти из аккаунта</button>`;
-        F.$('#s-save', box).onclick = () => {
+        F.$('#s-save', box).onclick = async () => {
           const m = F.$('#s-m', box), n = F.$('#s-n', box).value;
-          if (me.pass !== F.passHash(me.email, F.$('#s-o', box).value)) { msg(m, 'Неверный текущий пароль'); return; }
           if (n.length < 6) { msg(m, 'Новый пароль должен быть не короче 6 символов'); return; }
           if (n !== F.$('#s-r', box).value) { msg(m, 'Пароли не совпадают'); return; }
-          me.pass = F.passHash(me.email, n); F.save(); msg(m, 'Пароль изменён', true); ['#s-o', '#s-n', '#s-r'].forEach(i => F.$(i, box).value = '');
+          if (byMail) {
+            const chk = await F.sb.auth.signInWithPassword({ email: me.email, password: F.$('#s-o', box).value });
+            if (chk.error) { msg(m, 'Неверный текущий пароль'); return; }
+          }
+          const r = await F.sb.auth.updateUser({ password: n });
+          if (r.error) { msg(m, F.niceError(r.error.message)); return; }
+          msg(m, 'Пароль изменён', true); ['#s-o', '#s-n', '#s-r'].forEach(i => { const el = F.$(i, box); if (el) el.value = ''; });
         };
         F.$('#s-out', box).onclick = () => F.logout();
       } else {
         const th = [['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в системе']], ac = [['blue', 'Голубой', '#6c85ff'], ['lavender', 'Лавандовый', '#9a82ff'], ['mint', 'Мятный', '#46c3a7']];
         box.innerHTML = `<h2 class="sec-title">Внешний вид</h2><div class="form-row"><label>Тема</label><div class="theme-opts">${th.map(t => `<div class="opt${s.theme === t[0] ? ' sel' : ''}" data-th="${t[0]}">${t[1]}</div>`).join('')}</div></div>
-<div class="form-row"><label>Цвет оформления</label><div class="theme-opts">${ac.map(a => `<div class="opt${s.accent === a[0] ? ' sel' : ''}" data-ac="${a[0]}"><span class="swatch" style="background:${a[2]}"></span>${a[1]}</div>`).join('')}</div></div>
-<div class="nav-sep" style="margin:18px 0"></div><p class="muted small">Данные хранятся только в этом браузере.</p><button class="btn btn-ghost btn-sm" id="reset">Удалить все данные в этом браузере</button>`;
-        F.$('#reset', box).onclick = () => F.confirm('Будут удалены все страницы, записи, фотографии и переписка в этом браузере. Продолжить?', 'Удалить').then(ok => { if (ok) { F.resetDemo(); location.href = 'login.html'; } });
+<div class="form-row"><label>Цвет оформления</label><div class="theme-opts">${ac.map(a => `<div class="opt${s.accent === a[0] ? ' sel' : ''}" data-ac="${a[0]}"><span class="swatch" style="background:${a[2]}"></span>${a[1]}</div>`).join('')}</div></div>`;
       }
     }
     c.addEventListener('click', e => {
