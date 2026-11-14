@@ -55,6 +55,7 @@
     friends: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5 M16 4.8a3 3 0 0 1 0 5.6 M18 14.8c2 .7 3.5 2.3 3.5 5.2"/>',
     groups: '<circle cx="12" cy="8" r="3"/><path d="M7 20c0-3 2-5 5-5s5 2 5 5 M5 9.5a2.5 2.5 0 1 0 .5 4.5 M19 9.5a2.5 2.5 0 1 1-.5 4.5"/>',
     photo: '<path d="M4 7h4l2-2.5h4L16 7h4v12H4z"/><circle cx="12" cy="13" r="3.6"/>',
+    portal: '<ellipse cx="12" cy="12" rx="6.5" ry="9.5"/><ellipse cx="12" cy="12" rx="2.6" ry="5.6"/><path d="M3 4.5l.6 1.4 1.4.6-1.4.6L3 8.5l-.6-1.4L1 6.5l1.4-.6zM21 15.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
     shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
     settings: '<path d="M4 7h9 M17 7h3 M4 17h3 M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
     bell: '<path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21h4"/>',
@@ -75,7 +76,7 @@
     smile: '<circle cx="12" cy="12" r="8"/><path d="M9 14c1.5 2 4.5 2 6 0 M9.5 10h.01 M14.5 10h.01"/>'
   };
   F.ic = (n, s) => `<svg class="ic" viewBox="0 0 24 24" width="${s || 20}" height="${s || 20}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
-  F.logoMark = (w) => `<svg viewBox="0 0 40 40" width="${w || 40}" height="${w || 40}" filter="url(#scribble)" aria-hidden="true"><path d="M5 11Q5 5 11 5H29Q35 5 35 11V23Q35 29 29 29H21L13 36V29H11Q5 29 5 23Z" fill="#dfe6ff" stroke="#1d2a5c" stroke-width="2.6" stroke-linejoin="round"/><path d="M10 19q2.500-8 5 0t5 0t5 0t5 0" fill="none" stroke="#6c85ff" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 1.500l1.500 3.300 3.300 1.500-3.300 1.500L34 11l-1.500-3.200L29.200 6.300l3.300-1.500z" fill="#ffd27f" stroke="#1d2a5c" stroke-width="1.400" stroke-linejoin="round"/></svg>`;
+  F.logoMark = (w) => `<svg viewBox="0 0 40 40" width="${w || 40}" height="${w || 40}" aria-hidden="true"><path d="M5 11Q5 5 11 5H29Q35 5 35 11V23Q35 29 29 29H21L13 36V29H11Q5 29 5 23Z" fill="#dfe6ff" stroke="#1d2a5c" stroke-width="2.6" stroke-linejoin="round"/><path d="M10 19q2.500-8 5 0t5 0t5 0t5 0" fill="none" stroke="#6c85ff" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 1.500l1.500 3.300 3.300 1.500-3.300 1.500L34 11l-1.500-3.200L29.200 6.300l3.300-1.500z" fill="#ffd27f" stroke="#1d2a5c" stroke-width="1.400" stroke-linejoin="round"/></svg>`;
   F.logoHTML = () => `<a class="logo" href="index.html">${F.logoMark()}Каракули</a>`;
 
   /* ---------- процедурная графика: аватары и фотографии ---------- */
@@ -164,7 +165,7 @@
   };
 
   /* ---------- данные: см. data.js (Supabase) ---------- */
-  F.defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true } });
+  F.defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true, follow: true } });
 
   /* ---------- пользователи ---------- */
   F.me = () => { const id = F.sessionId(); return id ? (F.db().users[id] || null) : null; };
@@ -203,9 +204,16 @@
   F.members = c => (c.base || 0) + c.members.length;
   const avCache = {};
   F.avatar = u => { if (!u) return F.avatarFor('deleted'); if (u.avatar) return u.avatar; return avCache[u.id] || (avCache[u.id] = F.avatarFor(u.id + u.first)); };
-  F.cover = u => u.cover || F.scene(['sunset', 'night', 'meadow', 'sea', 'city'][hashStr(u.id) % 5], hashStr(u.id) % 50);
+  /* обложка по умолчанию: аккуратный градиент с мягкими кругами */
+  const GRADS = [['#6d83ff', '#b69cff'], ['#4cc9b0', '#6d9bff'], ['#ff8fa8', '#ffb98a'], ['#7a8cff', '#52d1dc'], ['#a58bff', '#ff9ccc'], ['#5ea3ff', '#7be0b4'], ['#ffa86b', '#ff7a9a'], ['#6c7bd9', '#8fd3ff']];
+  const gradCache = {};
+  F.gradCover = seed => {
+    const h = hashStr(String(seed)), g = GRADS[h % GRADS.length];
+    return gradCache[seed] || (gradCache[seed] = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${g[0]}"/><stop offset="1" stop-color="${g[1]}"/></linearGradient></defs><rect width="1200" height="300" fill="url(#g)"/><circle cx="${150 + h % 300}" cy="${40 + h % 120}" r="150" fill="#fff" fill-opacity=".12"/><circle cx="${760 + h % 300}" cy="${200 - h % 90}" r="210" fill="#fff" fill-opacity=".1"/><circle cx="${1050 - h % 200}" cy="30" r="90" fill="#fff" fill-opacity=".1"/></svg>`));
+  };
+  F.cover = u => u.cover || F.gradCover(u.id);
+  F.cCover = c => c.cover || F.gradCover(c.id);
   F.cAvatar = c => c.avatar || avCache[c.id] || (avCache[c.id] = F.communityIcon(c.emoji || '★', c.id));
-  F.cCover = c => c.cover || F.scene(['sunset', 'night', 'meadow', 'sea', 'city'][hashStr(c.id) % 5], hashStr(c.id) % 50 + 3);
   F.isOnline = u => !!(u && u.online && (!u.settings || !u.settings.privacy || u.settings.privacy.online !== false));
   F.areFriends = (a, b) => !!(F.user(a) && F.user(a).friends.includes(b));
   const addU = (arr, v) => { if (!arr.includes(v)) arr.push(v); };
@@ -228,6 +236,16 @@
   };
   F.declineRequest = from => { const me = F.me(), u = F.user(from); rm(me.incoming, from); if (u) rm(u.outgoing, me.id); F.save(); F.badges(); };
   F.cancelRequest = to => { const me = F.me(), u = F.user(to); rm(me.outgoing, to); if (u) rm(u.incoming, me.id); F.save(); };
+  /* ---------- подписчики ---------- */
+  F.isFollowing = id => { const me = F.me(); return !!me && (me.following || []).includes(id); };
+  F.follow = id => {
+    const me = F.me(), u = F.user(id); if (!u || id === me.id || F.isFollowing(id)) return false;
+    me.following.push(id); u.followers.push(me.id);
+    F.notify(id, 'follow', me.id, { link: 'profile.html?id=' + me.id });
+    F.save(); return true;
+  };
+  F.unfollow = id => { const me = F.me(), u = F.user(id); rm(me.following, id); if (u) rm(u.followers, me.id); F.save(); };
+
   F.removeFriend = id => { const me = F.me(), u = F.user(id); rm(me.friends, id); if (u) rm(u.friends, me.id); F.save(); };
 
   /* ---------- сообщения ---------- */
@@ -251,7 +269,8 @@
     friend_accept: { ic: 'check', text: 'принял(а) вашу заявку в друзья' },
     message: { ic: 'chat', text: 'отправил(а) вам сообщение' },
     community_post: { ic: 'groups', text: 'опубликовало новую запись' },
-    repost: { ic: 'repost', text: 'поделился(ась) вашей записью' }
+    repost: { ic: 'repost', text: 'поделился(ась) вашей записью' },
+    follow: { ic: 'user', text: 'подписался(-ась) на вас' }
   };
   F.notify = (to, type, from, extra) => {
     if (to === from) return;
@@ -353,28 +372,12 @@
     try { localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: t, accent: p.accent || 'blue' })); } catch (e) { }
   };
   F.decor = () => {
-    if ($('.deco')) return;
-    // рукописный шрифт и Nunito (если нет интернета — используются системные шрифты)
-    if (!$('#karakuli-fonts')) { const l = document.createElement('link'); l.id = 'karakuli-fonts'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap&subset=cyrillic'; document.head.appendChild(l); }
-    const INKC = 'var(--ink)';
-    const doodles = [
-      ['<path d="M12 2.5l2.6 6.6 7 .5-5.4 4.5 1.8 6.9L12 17l-6 4 1.8-6.9L2.4 9.6l7-.5z" fill="var(--accent2)" stroke="' + INKC + '" stroke-width="1.5" stroke-linejoin="round"/>', 30],
-      ['<path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z" fill="#ffb3c6" stroke="' + INKC + '" stroke-width="1.5" stroke-linejoin="round"/>', 26],
-      ['<path d="M12 2l1.8 8.2L22 12l-8.2 1.8L12 22l-1.8-8.2L2 12l8.2-1.8z" fill="#fff6c8" stroke="' + INKC + '" stroke-width="1.5" stroke-linejoin="round"/>', 24],
-      ['<path d="M3 15q4-8 8 0t8 0" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/>', 38],
-      ['<path d="M6 17a4 4 0 0 1 .8-7.9 5 5 0 0 1 9.6 1A3.5 3.5 0 0 1 17 17z" fill="#fff" stroke="' + INKC + '" stroke-width="1.5" stroke-linejoin="round"/>', 44],
-      ['<path d="M12 12m0 0a2 2 0 1 1 3 1.5a5 5 0 1 1-6-6" fill="none" stroke="var(--accent2)" stroke-width="2" stroke-linecap="round"/>', 30]
-    ];
-    const pos = [[1, 12], [94, 9], [47, 2], [97, 55], [1, 66], [58, 91], [27, 95], [92, 88], [1, 40], [70, 3], [36, 92], [96, 30]];
-    const items = pos.map((p, i) => { const d = doodles[i % doodles.length]; return `<svg style="left:${p[0]}%;top:${p[1]}%;animation-delay:${(i * .7) % 4}s;animation-duration:${5 + i % 3}s;transform:rotate(${(i * 37) % 40 - 20}deg)" width="${d[1]}" height="${d[1]}" viewBox="0 0 24 24" filter="url(#scribble)">${d[0]}</svg>`; }).join('');
-    document.body.insertAdjacentHTML('afterbegin',
-      `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wobble" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter><filter id="scribble" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="9" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter></svg>` +
-      `<div class="deco" aria-hidden="true">${items}</div>`);
+    if (!$('#karakuli-fonts')) { const l = document.createElement('link'); l.id = 'karakuli-fonts'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'; document.head.appendChild(l); }
   };
 
   /* ---------- оболочка страницы ---------- */
   const NAV = [['index', 'Главная', 'home'], ['profile', 'Моя страница', 'user'], ['news', 'Новости', 'news'], ['messages', 'Сообщения', 'chat', 'msg'], ['friends', 'Друзья', 'friends', 'fr'],
-    ['communities', 'Сообщества', 'groups'], ['photos', 'Фотографии', 'photo'], ['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings']];
+    ['events', 'Ивенты', 'portal'], ['communities', 'Сообщества', 'groups'], ['photos', 'Фотографии', 'photo'], ['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings']];
 
   F.mount = (key, opts) => {
     opts = opts || {}; const me = F.me();
@@ -384,8 +387,9 @@
 <header class="topbar">
   <button class="icon-btn burger" id="burger" aria-label="Меню">${F.ic('menu', 24)}</button>
   ${F.logoHTML()}
-  <div class="search">${F.ic('search', 18)}<input id="gsearch" type="search" placeholder="Поиск…" autocomplete="off"><div class="search-results" id="gres" hidden></div></div>
+  <div class="search">${F.ic('search', 18)}<input id="gsearch" type="search" placeholder="Поиск" aria-label="Поиск" autocomplete="off"><div class="search-results" id="gres" hidden></div></div>
   <div class="top-right">
+    <a class="icon-btn portal-btn" href="events.html" title="Портал ивентов" aria-label="Портал ивентов">${F.ic('portal', 22)}</a>
     <a class="icon-btn" href="notifications.html" title="Уведомления" aria-label="Уведомления">${F.ic('bell', 22)}<b class="dot-badge" data-badge="nt" hidden></b></a>
     <a class="top-ava" href="profile.html" title="Моя страница"><img src="${F.avatar(me)}" alt=""></a>
   </div>
@@ -419,9 +423,20 @@
     F.badges();
   };
 
+  /** Ближайшие дни рождения среди друзей и тех, на кого вы подписаны (7 дней вперёд). */
+  F.birthdays = () => {
+    const me = F.me(), ids = Array.from(new Set(me.friends.concat(me.following || []))), out = [], now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    ids.forEach(id => {
+      const u = F.user(id); if (!u || !u.birth) return; const m = /^\d{4}-(\d{2})-(\d{2})/.exec(u.birth); if (!m) return;
+      let d = new Date(t0.getFullYear(), +m[1] - 1, +m[2]); if (d < t0) d = new Date(t0.getFullYear() + 1, +m[1] - 1, +m[2]);
+      const days = Math.round((d - t0) / 864e5); if (days <= 7) out.push({ u, days, date: d });
+    });
+    return out.sort((a, b) => a.days - b.days);
+  };
   F.rightPanel = el => {
     const me = F.me(), d = F.db();
     const online = me.friends.map(F.user).filter(u => u && F.isOnline(u)).slice(0, 5);
+    const bd = F.birthdays().slice(0, 4);
     const pop = d.communities.slice().sort((a, b) => F.members(b) - F.members(a)).slice(0, 3);
     el.innerHTML = `
 <section class="card card-pad"><a href="profile.html" class="rowitem" style="color:inherit"><span class="ava-wrap"><img class="ava ava-l" src="${F.avatar(me)}" alt=""><i class="online-dot"></i></span>
@@ -429,6 +444,7 @@
   <a class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" href="profile.html?edit=1">Редактировать профиль</a></section>
 <section class="card card-pad"><div class="sec-title">Друзья онлайн <a href="friends.html?tab=online">${online.length ? 'все' : ''}</a></div>
   ${online.length ? online.map(u => `<div class="rowitem"><a class="ava-wrap" href="profile.html?id=${u.id}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><i class="online-dot" style="width:10px;height:10px"></i></a><a class="grow" style="color:var(--ink)" href="profile.html?id=${u.id}"><b>${F.nameHTML(u, 13)}</b></a><a class="icon-btn" style="width:30px;height:30px" href="messages.html?u=${u.id}" title="Написать">${F.ic('chat', 18)}</a></div>`).join('') : '<div class="muted small">Сейчас никого нет онлайн</div>'}</section>
+${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни рождения</div>${bd.map(b => `<a class="rowitem" href="profile.html?id=${b.u.id}"><img class="ava ava-s" src="${F.avatar(b.u)}" alt=""><span class="grow"><b>${F.nameHTML(b.u, 13)}</b><span class="muted small">${b.days === 0 ? 'сегодня 🎂' : b.days === 1 ? 'завтра' : 'через ' + b.days + ' ' + F.plural(b.days, 'день', 'дня', 'дней')}</span></span></a>`).join('')}</section>` : ''}
 <section class="card card-pad"><div class="sec-title">Популярные сообщества <a href="communities.html">все</a></div>
   ${pop.length ? '' : '<div class="muted small">Сообществ пока нет. <a href="communities.html">Создать первое</a></div>'}${pop.map(c => `<a class="rowitem" href="community.html?id=${c.id}"><img class="ava ava-m" style="border-radius:14px" src="${F.cAvatar(c)}" alt=""><span class="grow"><b>${F.esc(c.name)}</b><span class="muted small">${F.fmtCount(F.members(c))} подписчиков</span></span></a>`).join('')}</section>`;
   };
@@ -437,7 +453,7 @@
   const ready = fn => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn();
   F.showLoader = () => {
     if ($('#loader')) return;
-    document.body.insertAdjacentHTML('beforeend', `<div id="loader" class="loader"><div class="loader-box">${F.logoMark(60)}<div class="hand" style="font-size:24px">Загружаем…</div></div></div>`);
+    document.body.insertAdjacentHTML('beforeend', `<div id="loader" class="loader"><div class="loader-box">${F.logoMark(60)}<div style="font-weight:700;font-size:24px">Загружаем…</div></div></div>`);
   };
   F.hideLoader = () => { const l = $('#loader'); if (l) l.remove(); };
   F.fatal = (msg, canLogout) => {

@@ -6,7 +6,7 @@
     const me = F.me();
     if (!me.isAdmin) { c.innerHTML = `<div class="card empty">${F.ic('shield', 40)}<div><b>Нет доступа</b></div><p class="muted small">Эта страница только для администратора сайта.</p><p><a class="btn" href="index.html">На главную</a></p></div>`; return; }
     const sb = F.sb, esc = F.esc;
-    const TABS = [['stats', 'Статистика'], ['users', 'Пользователи'], ['posts', 'Записи'], ['comments', 'Комментарии'], ['communities', 'Сообщества']];
+    const TABS = [['stats', 'Статистика'], ['users', 'Пользователи'], ['posts', 'Записи'], ['comments', 'Комментарии'], ['communities', 'Сообщества'], ['events', 'Ивенты']];
     let tab = new URLSearchParams(location.search).get('tab') || 'stats', timer = null, q = '';
     c.innerHTML = `<h1 class="page-title">Админ-панель</h1><div class="adm-tabs" id="at"></div><div id="ab"></div>`;
     const tabs = F.$('#at', c), box = F.$('#ab', c);
@@ -120,10 +120,46 @@
       };
     }
 
+    /* ---------- ивенты ---------- */
+    async function events() {
+      box.innerHTML = '<div class="card card-pad muted">Загружаем…</div>';
+      const r = await sb.from('events').select('*').order('starts_at', { ascending: false }).limit(50);
+      if (tab !== 'events') return;
+      if (r.error) { box.innerHTML = `<div class="card card-pad"><b>Ивенты не подключены.</b><p class="muted small">${esc(F.niceError(r.error.message))}</p><p class="small">Выполните в Supabase SQL Editor файл <code>supabase/migration_003_social.sql</code> (вставьте текст файла и нажмите Run).</p></div>`; return; }
+      if (F.events && !F.events.offset) { try { const t = await sb.rpc('server_time'); if (t.data) F.events.offset = Date.parse(t.data) - Date.now(); } catch (e) { /* часы устройства */ } }
+      const now = Date.now() + ((F.events && F.events.offset) || 0), P = e => Date.parse(e.starts_at), Q = e => Date.parse(e.ends_at);
+      const fmt = ms => new Date(ms).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const loc = d => { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+      box.innerHTML = `<section class="card card-pad" style="margin-bottom:14px"><h2 class="sec-title">Новый ивент</h2>
+<div class="form-row"><label>Название</label><input class="input" id="ev-t" maxlength="80" placeholder="Например, Пиксель-батл"></div>
+<div class="form-row"><label>Описание</label><textarea class="input" id="ev-d" rows="3" maxlength="1000" placeholder="Что будет и как участвовать"></textarea></div>
+<div class="form-grid"><div class="form-row"><label>Начало</label><input class="input" id="ev-s" type="datetime-local" value="${loc(new Date(now + 3600e3))}"></div>
+<div class="form-row"><label>Длительность</label><select class="input" id="ev-l"><option value="15">15 минут</option><option value="30">30 минут</option><option value="60" selected>1 час</option><option value="180">3 часа</option><option value="1440">1 сутки</option><option value="10080">1 неделя</option></select></div></div>
+<div class="form-msg" id="ev-m"></div><div class="adm-actions"><button class="btn" id="ev-add">Запланировать</button><button class="btn btn-ghost" id="ev-now">Запустить прямо сейчас</button></div></section>
+<section class="card card-pad"><h2 class="sec-title">Все ивенты</h2>${r.data.length ? r.data.map(e => { const st = P(e) <= now && now < Q(e) ? ['Идёт', 'green'] : P(e) > now ? ['Запланирован', 'blue'] : ['Завершён', 'gray'];
+        return `<div class="ev-row" data-e="${e.id}"><div class="grow"><div><b>${esc(e.title)}</b><span class="tag ${st[1]}">${st[0]}</span></div><div class="muted small">${fmt(P(e))} — ${fmt(Q(e))}</div>${e.description ? `<div class="small" style="margin-top:2px">${esc(short(e.description, 160))}</div>` : ''}</div>
+<div class="adm-actions">${st[0] === 'Запланирован' ? '<button class="btn btn-ghost btn-sm" data-a="start">Запустить сейчас</button>' : ''}${st[0] === 'Идёт' ? '<button class="btn btn-ghost btn-sm" data-a="stop">Завершить</button>' : ''}<button class="btn btn-danger btn-sm" data-a="del">Удалить</button></div></div>`; }).join('') : '<div class="muted">Ивентов пока нет</div>'}</section>`;
+      const create = startMs => {
+        const t = F.$('#ev-t', box).value.trim(), m = F.$('#ev-m', box); if (!t) { m.className = 'form-msg err'; m.textContent = 'Введите название'; return; }
+        const len = +F.$('#ev-l', box).value * 60000;
+        if (isNaN(startMs)) { m.className = 'form-msg err'; m.textContent = 'Укажите время начала'; return; }
+        act(sb.from('events').insert({ title: t, description: F.$('#ev-d', box).value.trim(), starts_at: new Date(startMs).toISOString(), ends_at: new Date(startMs + len).toISOString(), created_by: me.id }), 'Ивент создан');
+      };
+      F.$('#ev-add', box).onclick = () => create(new Date(F.$('#ev-s', box).value).getTime());
+      F.$('#ev-now', box).onclick = () => create(now);
+      box.onchange = null;
+      box.onclick = e => {
+        const b = e.target.closest('[data-a]'); if (!b) return; const id = b.closest('[data-e]').dataset.e, ev = r.data.find(x => x.id === id); if (!ev) return;
+        if (b.dataset.a === 'start') act(sb.from('events').update({ starts_at: new Date(now).toISOString(), ends_at: new Date(now + (Q(ev) - P(ev))).toISOString() }).eq('id', id), 'Ивент запущен');
+        else if (b.dataset.a === 'stop') act(sb.from('events').update({ ends_at: new Date(now).toISOString() }).eq('id', id), 'Ивент завершён');
+        else F.confirm('Удалить ивент «' + ev.title + '»?', 'Удалить').then(ok => ok && act(sb.from('events').delete().eq('id', id), 'Ивент удалён'));
+      };
+    }
+
     function draw() {
       clearInterval(timer);
       tabs.innerHTML = TABS.map(t => `<button class="tab${tab === t[0] ? ' active' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
-      ({ stats, users, posts, comments, communities }[tab] || stats)();
+      ({ stats, users, posts, comments, communities, events }[tab] || stats)();
       if (tab === 'stats') timer = setInterval(() => { if (!document.hidden) stats(); }, 15000);
     }
     tabs.addEventListener('click', e => { const t = e.target.closest('[data-t]'); if (!t) return; tab = t.dataset.t; q = ''; draw(); });

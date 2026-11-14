@@ -101,8 +101,10 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       const me = F.me(), d = F.db();
       const myC = d.communities.filter(c => c.members.includes(me.id)).map(c => c.id);
       let list = d.posts.filter(p => {
-        if (kind === 'home') return p.communityId ? myC.includes(p.communityId) : (p.authorId === me.id || me.friends.includes(p.authorId));
+        const fol = me.following || [];
+        if (kind === 'home') return p.communityId ? myC.includes(p.communityId) : (p.authorId === me.id || me.friends.includes(p.authorId) || fol.includes(p.authorId));
         if (kind === 'friends') return !p.communityId && (p.authorId === me.id || me.friends.includes(p.authorId));
+        if (kind === 'follows') return !p.communityId && fol.includes(p.authorId);
         if (kind === 'communities') return !!p.communityId && myC.includes(p.communityId);
         return true;
       });
@@ -175,7 +177,7 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       F.rightPanel(right);
       c.innerHTML = '<div id="comp"></div><div id="feed" style="display:flex;flex-direction:column;gap:14px"></div>';
       const feed = F.$('#feed', c);
-      const draw = () => F.posts.mount(feed, () => F.posts.feed('home'), { empty: 'Лента пока пуста. Добавьте друзей или подпишитесь на сообщества!' });
+      const draw = () => F.posts.mount(feed, () => F.posts.feed('home'), { empty: 'Лента пока пуста. Добавьте друзей, подпишитесь на людей или на сообщества!' });
       F.posts.composer(F.$('#comp', c), { onPublish: draw });
       draw(); flashHash();
     });
@@ -184,9 +186,9 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       F.rightPanel(right);
       let kind = 'all', sort = 'new';
       c.innerHTML = `<div class="toolbar"><h1 class="page-title">Новости</h1><select class="input" id="srt" style="width:auto"><option value="new">Сначала новые</option><option value="popular">Сначала популярные</option></select></div>
-<div class="tabs" id="tb"><button class="tab active" data-k="all">Все записи</button><button class="tab" data-k="friends">Друзья</button><button class="tab" data-k="communities">Сообщества</button></div>
+<div class="tabs" id="tb"><button class="tab active" data-k="all">Все записи</button><button class="tab" data-k="friends">Друзья</button><button class="tab" data-k="follows">Подписки</button><button class="tab" data-k="communities">Сообщества</button></div>
 <div id="feed" style="display:flex;flex-direction:column;gap:14px"></div>`;
-      const feed = F.$('#feed', c), empties = { all: 'Записей пока нет', friends: 'У ваших друзей пока нет записей', communities: 'Подпишитесь на сообщества, чтобы видеть их записи' };
+      const feed = F.$('#feed', c), empties = { all: 'Записей пока нет', friends: 'У ваших друзей пока нет записей', follows: 'Подпишитесь на людей, чтобы видеть их записи здесь', communities: 'Подпишитесь на сообщества, чтобы видеть их записи' };
       const draw = () => F.posts.mount(feed, () => F.posts.feed(kind, sort), { empty: empties[kind] });
       F.$('#tb', c).addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; kind = b.dataset.k; F.$$('.tab', c).forEach(t => t.classList.toggle('active', t === b)); draw(); });
       F.$('#srt', c).addEventListener('change', e => { sort = e.target.value; draw(); });

@@ -11,7 +11,7 @@
   .layout,.layout.no-right{grid-template-columns:minmax(0,1fr);padding:72px 12px 86px;gap:12px}
   .icon-btn.burger{display:inline-grid}
   .left{position:fixed;z-index:120;top:0;left:0;bottom:0;width:272px;max-width:84vw;padding:16px 12px;background:var(--card);
-    border-right:2px solid var(--line);transform:translateX(-105%);transition:transform .25s;overflow:auto;box-shadow:var(--glow)}
+    border-right:1px solid var(--line);transform:translateX(-105%);transition:transform .25s;overflow:auto;box-shadow:var(--glow)}
   body.drawer-open .left{transform:none}
   .drawer-ov{display:block;position:fixed;inset:0;z-index:110;background:rgba(20,25,60,.45);opacity:0;pointer-events:none;transition:.25s}
   body.drawer-open .drawer-ov{opacity:1;pointer-events:auto}
@@ -30,13 +30,13 @@
 @media (max-width:720px){
   body{font-size:14.5px}
   .topbar{height:54px;gap:8px;padding:0 10px}
-  .logo{font-size:22px}
+  .logo{font-size:20px}
   .search{max-width:none}
   .top-ava{display:none}
   .layout,.layout.no-right{padding:64px 8px 90px}
   .layout.show-right-mobile .right{display:flex}
   .bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:90;
-    background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(10px);border-top:2px solid var(--line);
+    background:var(--card);border-top:1px solid var(--line);
     padding:5px 4px max(6px,env(safe-area-inset-bottom))}
   .bottom-nav a,.bottom-nav button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:10.5px;font-weight:700;color:var(--muted);
     background:none;border:0;padding:4px 0;position:relative;cursor:pointer;text-decoration:none}
@@ -44,14 +44,19 @@
   .bottom-nav .active .ic{fill:var(--accent2)}
   .bottom-nav .badge{position:absolute;top:0;left:55%;margin:0;min-width:17px;height:17px;font-size:10px}
   .toasts{bottom:78px}
-  .card{border-radius:18px}
+  .card{border-radius:12px}
+  .btn,.tab,.act,.opt{min-height:44px}
+  .btn-sm{min-height:38px}
+  .act{min-height:40px}
+  .icon-btn{width:44px;height:44px}
+  .input,input.input,textarea.input,select.input,.search input{font-size:16px}
   .post{padding:12px}
   .pgrid.n3{grid-template-columns:1fr 1fr}
   .cover{height:130px}
   .p-main{padding:0 12px 6px;margin-top:-40px}
   .ava-xl{width:92px;height:92px}
   .p-info{padding-top:44px}
-  .p-info h1{font-size:22px}
+  .p-info h1{font-size:21px}
   .p-stats{gap:18px;padding:8px 14px 12px}
   .info-table{grid-template-columns:1fr;gap:2px 0}
   .info-table dt{margin-top:8px}
@@ -66,17 +71,24 @@
   .composer{padding:10px}
   .composer>.ava{display:none}
   /* сообщения: список ИЛИ диалог */
-  .chat{grid-template-columns:1fr;height:calc(100vh - 150px);height:calc(100dvh - 150px)}
+  .chat{grid-template-columns:1fr;height:calc(100vh - 150px);height:calc(100dvh - 150px);border-radius:12px}
   .chat .chat-pane{display:none}
   .chat.open .chat-list{display:none}
   .chat.open .chat-pane{display:flex}
   .chat-back{display:inline-grid}
   .msg{max-width:86%}
   .modal-ov{align-items:end;padding:0}
-  .modal,.modal.wide{max-width:none;border-radius:22px 22px 0 0;max-height:90vh}
+  .modal,.modal.wide{max-width:none;border-radius:18px 18px 0 0;max-height:90vh;padding-bottom:max(16px,env(safe-area-inset-bottom))}
   .auth{padding:10px}
   .auth-form{padding:22px 18px}
-  .deco svg:nth-child(n+4){display:none}
+}
+
+/* узкие телефоны: в шапке остаётся только знак логотипа */
+@media (max-width:420px){
+  .logo{font-size:0;gap:0}
+  .topbar{gap:4px;padding:0 6px}
+  .search{min-width:0}
+  .top-right{gap:0}
 }
 
 @media (prefers-reduced-motion:reduce){

@@ -17,9 +17,9 @@
 (function (F) {
   'use strict';
   const CFG = window.KARAKULI_CONFIG || {};
-  const T_ORDER = ['profiles', 'communities', 'community_members', 'albums', 'posts', 'photos', 'friendships', 'likes', 'comments', 'bookmarks', 'messages', 'notifications'];
+  const T_ORDER = ['profiles', 'follows', 'communities', 'community_members', 'albums', 'posts', 'photos', 'friendships', 'likes', 'comments', 'bookmarks', 'messages', 'notifications'];
   const UPD = { profiles: null, communities: ['name', 'description', 'avatar_url', 'cover_url'], albums: ['name'], friendships: ['status'], messages: ['is_read'], notifications: ['is_read'] };
-  const IGNORE_DUP = ['likes', 'community_members', 'bookmarks'];
+  const IGNORE_DUP = ['likes', 'community_members', 'bookmarks', 'follows'];
   const GLYPHS = ['⭐', '✨', '👑', '🎮', '🐱', '📷'];
 
   let sb = null, session = null, initP = null, loaded = false;
@@ -66,7 +66,8 @@
   /* ---------- загрузка данных ---------- */
   const nice = m => {
     m = String(m || '');
-    if (/relation .* does not exist|schema cache|Could not find the table/i.test(m)) return 'В базе нет таблиц. Откройте Supabase → SQL Editor и выполните файл supabase/schema.sql.';
+    if (/relation .* does not exist|Could not find the table/i.test(m)) return 'В базе нет нужных таблиц. Откройте Supabase → SQL Editor и выполните файлы из папки supabase (сначала schema.sql, потом более новые migration_…).';
+    if (/schema cache|Could not find the function|function .* does not exist|column .* does not exist/i.test(m)) return 'База устарела: выполните в Supabase → SQL Editor свежие файлы migration_… из папки supabase.';
     if (/row-level security|permission denied/i.test(m)) return 'у вас нет прав на это действие';
     if (/foreign key/i.test(m)) return 'связанные данные уже удалены';
     if (/Failed to fetch|NetworkError|network/i.test(m)) return 'нет соединения с интернетом';
@@ -77,8 +78,9 @@
 
   async function fetchAll() {
     const me = session.user.id, from = t => sb.from(t).select('*');
-    const [profiles, friendships, posts, communities, members, albums, photos, likes, comments, bookmarks, messages, notifications] = await Promise.all([
+    const [profiles, follows, friendships, posts, communities, members, albums, photos, likes, comments, bookmarks, messages, notifications] = await Promise.all([
       run(from('profiles').limit(1000)),
+      run(from('follows').limit(20000)).catch(() => []), // до обновления базы подписок ещё нет
       run(from('friendships').limit(5000)),
       run(from('posts').order('created_at', { ascending: false }).limit(300)),
       run(from('communities').limit(1000)),
@@ -91,7 +93,7 @@
       run(from('messages').or(`sender_id.eq.${me},recipient_id.eq.${me}`).order('created_at', { ascending: false }).limit(2000)),
       run(from('notifications').eq('user_id', me).order('created_at', { ascending: false }).limit(100))
     ]);
-    return { profiles, friendships, posts, communities, members, albums, photos, likes, comments, bookmarks, messages, notifications };
+    return { profiles, follows, friendships, posts, communities, members, albums, photos, likes, comments, bookmarks, messages, notifications };
   }
 
   const ts = s => Date.parse(s) || Date.now();
@@ -108,7 +110,7 @@
         id: p.id, first: p.first_name || '', last: p.last_name || '', email: p.id === me ? (session.user.email || '') : '',
         status: p.status || '', about: p.about || '', city: p.city || '', birth: p.birth || '', avatar: p.avatar_url || null, cover: p.cover_url || null,
         online: p.id === me || (p.show_online !== false && now - ts(p.last_seen) < 150000), bot: false,
-        friends: [], incoming: [], outgoing: [], bookmarks: { posts: [], photos: [], links: [] },
+        friends: [], incoming: [], outgoing: [], following: [], followers: [], bookmarks: { posts: [], photos: [], links: [] },
         settings: { theme: s.theme || 'light', accent: s.accent || 'blue', privacy: { profile: p.privacy_profile || 'all', messages: p.privacy_messages || 'all', online: p.show_online !== false }, notify: Object.assign({}, def.notify, s.notify || {}) },
         created: ts(p.created_at),
         username: p.username || '', badge: p.badge || null, isAdmin: !!p.is_admin, banned: !!p.banned, banReason: p.ban_reason || ''
@@ -116,6 +118,8 @@
       if (users[p.id]) { const keep = users[p.id]; Object.keys(keep).forEach(k => delete keep[k]); Object.assign(keep, nu); } else users[p.id] = nu;
     });
     Object.keys(users).forEach(id => { if (!seen.has(id)) delete users[id]; });
+
+    d.follows.forEach(f => { const a = users[f.follower_id], b = users[f.followee_id]; if (a && b) { a.following.push(b.id); b.followers.push(a.id); } });
 
     pairMeta = {}; newPairIds = {};
     d.friendships.forEach(f => {
@@ -201,6 +205,7 @@
         privacy_profile: u.settings.privacy.profile, privacy_messages: u.settings.privacy.messages, show_online: u.settings.privacy.online !== false,
         settings: { theme: u.settings.theme, accent: u.settings.accent, notify: u.settings.notify } }, {}, { id: me });
     }
+    Object.values(DB.users).forEach(x => x.following.forEach(f => put('follows', x.id + ':' + f, { follower_id: x.id, followee_id: f }, {}, { follower_id: x.id, followee_id: f })));
     DB.communities.forEach(c => {
       put('communities', c.id, { id: c.id, name: c.name, description: c.desc || '', avatar_url: c.avatar || null, cover_url: c.cover || null, creator_id: c.creatorId }, { created_at: iso(c.created) });
       c.members.forEach(m => put('community_members', c.id + ':' + m, { community_id: c.id, user_id: m }, {}, { community_id: c.id, user_id: m }));

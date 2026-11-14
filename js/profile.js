@@ -17,18 +17,19 @@
 
     function renderHead() {
       let actions = '';
+      const folBtn = own ? '' : (F.isFollowing(u.id) ? '<button class="btn btn-ghost btn-sm" data-p="unfollow">Вы подписаны</button>' : '<button class="btn btn-ghost btn-sm" data-p="follow">Подписаться</button>');
       if (own) actions = `<button class="btn btn-sm" data-p="edit">${F.ic('edit', 16)} Редактировать профиль</button>`;
-      else if (me.friends.includes(u.id)) actions = `<a class="btn btn-sm" href="messages.html?u=${u.id}">${F.ic('chat', 16)} Написать</a><button class="btn btn-ghost btn-sm" data-p="remove">Удалить из друзей</button>`;
-      else if (me.incoming.includes(u.id)) actions = `<button class="btn btn-sm" data-p="accept">Принять заявку</button><button class="btn btn-ghost btn-sm" data-p="decline">Отклонить</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>`;
-      else if (me.outgoing.includes(u.id)) actions = `<button class="btn btn-ghost btn-sm" data-p="cancel">Отменить заявку</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>`;
-      else actions = `<button class="btn btn-sm" data-p="add">${F.ic('plus', 16)} Добавить в друзья</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>`;
+      else if (me.friends.includes(u.id)) actions = `<a class="btn btn-sm" href="messages.html?u=${u.id}">${F.ic('chat', 16)} Написать</a><button class="btn btn-ghost btn-sm" data-p="remove">Удалить из друзей</button>${folBtn}`;
+      else if (me.incoming.includes(u.id)) actions = `<button class="btn btn-sm" data-p="accept">Принять заявку</button><button class="btn btn-ghost btn-sm" data-p="decline">Отклонить</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
+      else if (me.outgoing.includes(u.id)) actions = `<button class="btn btn-ghost btn-sm" data-p="cancel">Отменить заявку</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
+      else actions = `<button class="btn btn-sm" data-p="add">${F.ic('plus', 16)} Добавить в друзья</button><a class="btn btn-ghost btn-sm" href="messages.html?u=${u.id}">Написать</a>${folBtn}`;
       const showStats = !locked();
       head.innerHTML = `<section class="card profile-card"><div class="cover"><img src="${F.cover(u)}" alt="">${own ? `<button class="btn btn-ghost btn-sm" data-p="edit">${F.ic('photo', 16)} Сменить обложку</button>` : ''}</div>
 <div class="p-main"><span class="ava-wrap"><img class="ava ava-xl" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot" style="width:20px;height:20px;border-width:3px"></i>' : ''}</span>
 <div class="p-info"><h1>${F.nameHTML(u, 22)}</h1>${u.username ? `<div class="handle" id="p-handle">@${F.esc(u.username)}</div>` : ''}<div class="status-line${own ? ' own' : ''}" ${own ? 'data-p="status" title="Изменить статус"' : ''}>${F.esc(u.status || (own ? 'Установить статус' : ''))}</div>
 <div style="margin-top:3px">${F.isOnline(u) ? '<span class="on-text">Online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div>
 <div class="p-actions">${actions}</div></div>
-${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.friends.length, 'друг', 'друга', 'друзей')}</div><div><b>${photos().length}</b>${F.plural(photos().length, 'фотография', 'фотографии', 'фотографий')}</div><div><b>${wall().length}</b>${F.plural(wall().length, 'публикация', 'публикации', 'публикаций')}</div></div>` : '<div style="height:10px"></div>'}</section>`;
+${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.friends.length, 'друг', 'друга', 'друзей')}</div><div><a href="#" data-sl="followers"><b>${(u.followers || []).length}</b>${F.plural((u.followers || []).length, 'подписчик', 'подписчика', 'подписчиков')}</a></div><div><a href="#" data-sl="following"><b>${(u.following || []).length}</b>${F.plural((u.following || []).length, 'подписка', 'подписки', 'подписок')}</a></div><div><b>${photos().length}</b>${F.plural(photos().length, 'фотография', 'фотографии', 'фотографий')}</div><div><b>${wall().length}</b>${F.plural(wall().length, 'публикация', 'публикации', 'публикаций')}</div></div>` : '<div style="height:10px"></div>'}</section>`;
     }
     function renderTabs() {
       const T = [['wall', 'Стена'], ['info', 'Информация'], ['friends', 'Друзья'], ['photos', 'Фотографии']];
@@ -85,8 +86,13 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
     c.addEventListener('click', e => {
       const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; renderTabs(); renderBody(); return; }
       const th = e.target.closest('[data-ph]'); if (th) { F.photoViewer(th.dataset.ph, photos().map(p => p.id), refreshAll); return; }
+      const sl = e.target.closest('[data-sl]');
+      if (sl) { e.preventDefault(); const kind = sl.dataset.sl, ids = (u[kind] || []).map(F.user).filter(Boolean);
+        F.modal({ title: (kind === 'followers' ? 'Подписчики' : 'Подписки') + ' · ' + F.esc(u.first), body: ids.length ? ids.map(x => `<a class="rowitem" href="profile.html?id=${x.id}"><img class="ava ava-m" src="${F.avatar(x)}" alt=""><span class="grow"><b>${F.nameHTML(x, 14)}</b>${x.username ? `<span class="muted small">@${F.esc(x.username)}</span>` : ''}</span></a>`).join('') : '<div class="empty">Здесь пока никого нет</div>' }); return; }
       const b = e.target.closest('[data-p]'); if (!b) return; const a = b.dataset.p;
       if (a === 'edit') editModal(); else if (a === 'status') statusModal();
+      else if (a === 'follow') { if (F.follow(u.id)) F.toast('Вы подписались на ' + u.first); refreshAll(); }
+      else if (a === 'unfollow') { F.unfollow(u.id); refreshAll(); }
       else if (a === 'add') { F.sendRequest(u.id); F.toast('Заявка отправлена'); refreshAll(); }
       else if (a === 'cancel') { F.cancelRequest(u.id); refreshAll(); }
       else if (a === 'accept') { F.acceptRequest(u.id); F.toast('Теперь вы друзья'); refreshAll(); }

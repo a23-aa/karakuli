@@ -62,7 +62,7 @@ ${row('online', 'privacy', 'Показывать, что я онлайн', 'Ес
         F.$('#p-pr', box).onchange = e => { p.profile = e.target.value; F.save(); F.toast('Сохранено'); };
         F.$('#p-ms', box).onchange = e => { p.messages = e.target.value; F.save(); F.toast('Сохранено'); };
       } else if (tab === 'notify') {
-        box.innerHTML = `<h2 class="sec-title">Уведомления</h2>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
+        box.innerHTML = `<h2 class="sec-title">Уведомления</h2>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('follow', 'notify', 'Новые подписчики')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
       } else if (tab === 'security') {
         const prov = ((F.authUser() || {}).app_metadata || {}).provider || 'email', byMail = prov === 'email';
         box.innerHTML = `<h2 class="sec-title">Безопасность</h2>
