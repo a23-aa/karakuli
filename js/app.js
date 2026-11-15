@@ -543,7 +543,8 @@ ${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни ро
     F.applyPrefs(); F.decor(); F.showLoader();
     try { await F.init(); } catch (e) { console.error(e); F.fatal(e.message || 'Проверьте интернет-соединение.', !!F.sessionId()); return; }
     if (!F.me()) { location.replace('login.html'); return; }
-    F.applyPrefs(); F.hideLoader(); F.mount(key, opts || {});
+    F.applyPrefs(); F.hideLoader();
+    if ((opts || {}).bare) document.body.insertAdjacentHTML('beforeend', '<div id="content"></div>'); else F.mount(key, opts || {});
     if (fn) fn(F.$('#content'), F.$('#right'), F.me());
     F.live(); F.eventPulse();
     const m = F.me();

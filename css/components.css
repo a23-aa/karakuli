@@ -303,3 +303,10 @@
 .chip{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:0 14px;min-height:34px;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .menu-pop .menu-wrap{display:none}
+
+/* Pixel Battle в портале ивентов */
+.pb-card{display:flex;flex-direction:column;gap:6px}
+.pb-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.pb-chip{font-weight:800;font-size:12px;letter-spacing:1.4px;padding:3px 10px;border-radius:999px;background:linear-gradient(120deg,var(--accent),#8b6cf0);color:#fff}
+.pb-card p{margin:0}
+.pb-play{align-self:flex-start;min-height:52px;padding:0 34px;font-size:18px;font-weight:800;letter-spacing:1px;box-shadow:0 0 22px color-mix(in srgb,var(--accent) 55%,transparent)}

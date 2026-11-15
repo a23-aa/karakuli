@@ -131,22 +131,26 @@
       const fmt = ms => new Date(ms).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       const loc = d => { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
       box.innerHTML = `<section class="card card-pad" style="margin-bottom:14px"><h2 class="sec-title">Новый ивент</h2>
+<div class="form-row"><label>Тип ивента</label><select class="input" id="ev-k"><option value="">Обычный (просто объявление)</option>${Object.entries(F.PIXEL_KINDS).map(([k, v]) => `<option value="${k}">Pixel Battle — ${v}</option>`).join('')}</select></div>
 <div class="form-row"><label>Название</label><input class="input" id="ev-t" maxlength="80" placeholder="Например, Пиксель-батл"></div>
 <div class="form-row"><label>Описание</label><textarea class="input" id="ev-d" rows="3" maxlength="1000" placeholder="Что будет и как участвовать"></textarea></div>
 <div class="form-grid"><div class="form-row"><label>Начало</label><input class="input" id="ev-s" type="datetime-local" value="${loc(new Date(now + 3600e3))}"></div>
 <div class="form-row"><label>Длительность</label><select class="input" id="ev-l"><option value="15">15 минут</option><option value="30">30 минут</option><option value="60" selected>1 час</option><option value="180">3 часа</option><option value="1440">1 сутки</option><option value="10080">1 неделя</option></select></div></div>
+<div class="form-grid" id="ev-pb" hidden><div class="form-row"><label>Кулдаун между пикселями, сек</label><input class="input" id="ev-cd" type="number" min="0" max="3600" value="30"></div>
+<div class="form-row"><label>Следующий раунд</label><select class="input" id="ev-an"><option value="0">Не запускать автоматически</option><option value="1">Запускать сам через 2 минуты после конца</option></select></div></div>
 <div class="form-msg" id="ev-m"></div><div class="adm-actions"><button class="btn" id="ev-add">Запланировать</button><button class="btn btn-ghost" id="ev-now">Запустить прямо сейчас</button></div></section>
 <section class="card card-pad"><h2 class="sec-title">Все ивенты</h2>${r.data.length ? r.data.map(e => { const st = P(e) <= now && now < Q(e) ? ['Идёт', 'green'] : P(e) > now ? ['Запланирован', 'blue'] : ['Завершён', 'gray'];
-        return `<div class="ev-row" data-e="${e.id}"><div class="grow"><div><b>${esc(e.title)}</b><span class="tag ${st[1]}">${st[0]}</span></div><div class="muted small">${fmt(P(e))} — ${fmt(Q(e))}</div>${e.description ? `<div class="small" style="margin-top:2px">${esc(short(e.description, 160))}</div>` : ''}</div>
+        return `<div class="ev-row" data-e="${e.id}"><div class="grow"><div><b>${esc(e.title)}</b><span class="tag ${st[1]}">${st[0]}</span>${e.kind === 'pixelbattle' ? `<span class="tag blue">${esc(F.PIXEL_KINDS[(e.config || {}).mode] || 'Pixel Battle')}</span>` : ''}</div><div class="muted small">${fmt(P(e))} — ${fmt(Q(e))}</div>${e.description ? `<div class="small" style="margin-top:2px">${esc(short(e.description, 160))}</div>` : ''}</div>
 <div class="adm-actions">${st[0] === 'Запланирован' ? '<button class="btn btn-ghost btn-sm" data-a="start">Запустить сейчас</button>' : ''}${st[0] === 'Идёт' ? '<button class="btn btn-ghost btn-sm" data-a="stop">Завершить</button>' : ''}<button class="btn btn-danger btn-sm" data-a="del">Удалить</button></div></div>`; }).join('') : '<div class="muted">Ивентов пока нет</div>'}</section>`;
       const create = startMs => {
-        const t = F.$('#ev-t', box).value.trim(), m = F.$('#ev-m', box); if (!t) { m.className = 'form-msg err'; m.textContent = 'Введите название'; return; }
+        const k = F.$('#ev-k', box).value, t = F.$('#ev-t', box).value.trim() || (k ? 'Pixel Battle · ' + F.PIXEL_KINDS[k] : ''), m = F.$('#ev-m', box); if (!t) { m.className = 'form-msg err'; m.textContent = 'Введите название'; return; }
         const len = +F.$('#ev-l', box).value * 60000;
         if (isNaN(startMs)) { m.className = 'form-msg err'; m.textContent = 'Укажите время начала'; return; }
-        act(sb.from('events').insert({ title: t, description: F.$('#ev-d', box).value.trim(), starts_at: new Date(startMs).toISOString(), ends_at: new Date(startMs + len).toISOString(), created_by: me.id }), 'Ивент создан');
+        act(sb.from('events').insert(Object.assign({ title: t, description: F.$('#ev-d', box).value.trim(), starts_at: new Date(startMs).toISOString(), ends_at: new Date(startMs + len).toISOString(), created_by: me.id }, k ? { kind: 'pixelbattle', config: { mode: k, cooldown: Math.max(0, Math.min(3600, parseInt(F.$('#ev-cd', box).value, 10) || 0)), auto_next: F.$('#ev-an', box).value === '1', break: 120 } } : {})), 'Ивент создан');
       };
       F.$('#ev-add', box).onclick = () => create(new Date(F.$('#ev-s', box).value).getTime());
       F.$('#ev-now', box).onclick = () => create(now);
+      F.$('#ev-k', box).onchange = e => { F.$('#ev-pb', box).hidden = !e.target.value; };
       box.onchange = null;
       box.onclick = e => {
         const b = e.target.closest('[data-a]'); if (!b) return; const id = b.closest('[data-e]').dataset.e, ev = r.data.find(x => x.id === id); if (!ev) return;
