@@ -15,9 +15,9 @@
       nav.innerHTML = T.map(t => `<button class="${tab === t[0] ? 'active' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
       if (tab === 'general') {
         box.innerHTML = `<h2 class="sec-title">Основные настройки</h2>
-<div class="form-grid"><div class="form-row"><label>Имя</label><input class="input" id="g-f" maxlength="30" value="${F.esc(me.first)}"></div><div class="form-row"><label>Фамилия</label><input class="input" id="g-l" maxlength="30" value="${F.esc(me.last)}"></div></div>
+<div class="form-grid"><div class="form-row"><label>Имя</label><input class="input" id="g-f" aria-label="Имя" maxlength="30" value="${F.esc(me.first)}"></div><div class="form-row"><label>Фамилия</label><input class="input" id="g-l" aria-label="Фамилия" maxlength="30" value="${F.esc(me.last)}"></div></div>
 <div class="form-row"><label>Юзернейм</label><input class="input" id="g-u" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" value="${F.esc(me.username || '')}" placeholder="например, ivan_petrov"><div class="form-msg" id="g-um" style="min-height:18px;margin-top:4px"></div></div>
-<div class="form-grid"><div class="form-row"><label>Дата рождения</label><input class="input" id="g-b" type="date" value="${F.esc(me.birth || '')}"></div><div class="form-row"><label>Город</label><input class="input" id="g-c" maxlength="50" value="${F.esc(me.city || '')}"></div></div>
+<div class="form-grid"><div class="form-row"><label>Дата рождения</label><input class="input" id="g-b" aria-label="День рождения" type="date" value="${F.esc(me.birth || '')}"></div><div class="form-row"><label>Город</label><input class="input" id="g-c" aria-label="Город" maxlength="50" value="${F.esc(me.city || '')}"></div></div>
 <div class="form-row"><label>Аватар</label><div style="display:flex;align-items:center;gap:12px"><img class="ava ava-l" id="g-av" src="${F.avatar(me)}" alt=""><button class="btn btn-ghost btn-sm" id="g-avb">Загрузить</button><button class="link-btn small" id="g-avr">Сбросить</button></div></div>
 <div class="form-msg" id="g-m"></div><button class="btn" id="g-save">Сохранить изменения</button>`;
         let av = me.avatar;

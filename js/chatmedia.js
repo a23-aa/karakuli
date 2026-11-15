@@ -75,42 +75,66 @@
   }
 
   /* ---------- запись кружка ---------- */
+  /* Видео рисуется на квадратный canvas и пишется оттуда: так камеру можно переключать прямо во время записи, запись не прерывается. */
   async function circle(done) {
-    let facing = 'user', stream, rec, chunks = [], t0 = 0, tm, blob = null, dur = 0, cancelled = false;
+    let facing = 'user', mic = null, cam = null, rec, chunks = [], t0 = 0, tm, blob = null, dur = 0, cancelled = false, raf = 0, switching = false;
+    const SZ = 480, cvs = document.createElement('canvas'); cvs.width = cvs.height = SZ; const g = cvs.getContext('2d');
     const ov = document.createElement('div'); ov.className = 'circ-ov';
+    const bar0 = () => `<button class="icon-btn" data-k="close" type="button" aria-label="Закрыть">✕</button><button class="circ-rec" data-k="rec" type="button" aria-label="Запись"><i></i></button><button class="icon-btn" data-k="flip" type="button" aria-label="Сменить камеру" title="Сменить камеру">${F.ic('camflip', 22)}</button>`;
     ov.innerHTML = `<div class="circ-box"><div class="circ-ring"><video class="circ-v" playsinline muted></video><svg class="circ-prog" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47"/></svg></div>
-<div class="circ-t">0:00 / 1:00</div><div class="circ-bar"><button class="icon-btn" data-k="close" type="button" aria-label="Закрыть">✕</button><button class="circ-rec" data-k="rec" type="button" aria-label="Запись"><i></i></button><button class="icon-btn" data-k="flip" type="button" aria-label="Сменить камеру">${F.ic('camflip', 22)}</button></div></div>`;
+<div class="circ-t">0:00 / 1:00</div><div class="circ-bar">${bar0()}</div></div>`;
     document.body.appendChild(ov); document.body.classList.add('no-scroll');
-    const v = ov.querySelector('.circ-v'), prog = ov.querySelector('.circ-prog circle'), $t = ov.querySelector('.circ-t'); let rb = ov.querySelector('.circ-rec');
+    const v = ov.querySelector('.circ-v'), prog = ov.querySelector('.circ-prog circle'), $t = ov.querySelector('.circ-t');
     prog.style.strokeDasharray = 295.3; prog.style.strokeDashoffset = 295.3;
-    async function open() {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: facing, width: { ideal: 480 }, height: { ideal: 480 } } }); } catch (e) { micErr(e); close(); return false; }
-      v.srcObject = stream; v.muted = true; v.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none'; v.play().catch(() => { }); return true;
+    const stopCam = () => { if (cam) cam.getTracks().forEach(t => t.stop()); cam = null; };
+    const stopAll = () => { cancelAnimationFrame(raf); clearInterval(tm); stopCam(); if (mic) mic.getTracks().forEach(t => t.stop()); mic = null; };
+    function paint() { // кадр с камеры → квадрат (по центру), зеркально для фронтальной камеры
+      raf = requestAnimationFrame(paint);
+      if (v.readyState < 2 || !v.videoWidth || !cam) return;
+      const w = v.videoWidth, h = v.videoHeight, sq = Math.min(w, h);
+      g.save(); if (facing === 'user') { g.translate(SZ, 0); g.scale(-1, 1); }
+      g.drawImage(v, (w - sq) / 2, (h - sq) / 2, sq, sq, 0, 0, SZ, SZ); g.restore();
     }
-    function close() { clearInterval(tm); if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); document.body.classList.remove('no-scroll'); }
+    async function openCam(first) { // меняет только видеодорожку; микрофон остаётся
+      switching = true;
+      try {
+        if (first) {
+          const st = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 720 } } });
+          mic = new MediaStream(st.getAudioTracks()); cam = new MediaStream(st.getVideoTracks());
+        } else {
+          const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: facing }, width: { ideal: 720 }, height: { ideal: 720 } } });
+          stopCam(); cam = st;
+        }
+      } catch (e) {
+        switching = false;
+        if (first) { micErr(e); close(); return false; }
+        facing = facing === 'user' ? 'environment' : 'user'; F.toast('Другой камеры на этом устройстве нет'); return false;
+      }
+      v.srcObject = cam; v.muted = true; v.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none'; await v.play().catch(() => { }); switching = false; return true;
+    }
+    function close() { stopAll(); ov.remove(); document.body.classList.remove('no-scroll'); }
     function start() {
       const mime = pick(['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']);
-      try { rec = new MediaRecorder(stream, Object.assign({ videoBitsPerSecond: 800000, audioBitsPerSecond: 32000 }, mime ? { mimeType: mime } : {})); } catch (e) { F.toast('Запись видео не поддерживается в этом браузере'); return; }
+      let out; try { out = new MediaStream([...cvs.captureStream(30).getVideoTracks(), ...mic.getAudioTracks()]); rec = new MediaRecorder(out, Object.assign({ videoBitsPerSecond: 800000, audioBitsPerSecond: 32000 }, mime ? { mimeType: mime } : {})); } catch (e) { F.toast('Запись видео не поддерживается в этом браузере'); return; }
       chunks = []; cancelled = false; rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
       rec.onstop = () => { clearInterval(tm); dur = Math.max(1, Math.round((Date.now() - t0) / 1000)); if (cancelled) return; blob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] }); review(); };
-      t0 = Date.now(); rec.start(500); ov.classList.add('recording'); rb.setAttribute('aria-label', 'Остановить');
+      t0 = Date.now(); rec.start(500); ov.classList.add('recording'); ov.querySelector('.circ-rec').setAttribute('aria-label', 'Остановить');
       tm = setInterval(() => { const s = (Date.now() - t0) / 1000; $t.textContent = mm(s) + ' / 1:00'; prog.style.strokeDashoffset = 295.3 * (1 - Math.min(1, s / 60)); if (s >= 60) rec.stop(); }, 200);
     }
     function review() {
-      stream.getTracks().forEach(t => t.stop()); v.srcObject = null; v.style.transform = 'none'; v.muted = false; v.loop = true; v.controls = false;
-      const url = URL.createObjectURL(blob); v.src = url; v.play().catch(() => { });
+      cancelAnimationFrame(raf); stopCam(); v.srcObject = null; v.style.transform = 'none'; v.muted = false; v.loop = true;
+      v.src = URL.createObjectURL(blob); v.play().catch(() => { });
       ov.classList.remove('recording'); ov.classList.add('review'); ov.querySelector('.circ-bar').innerHTML = `<button class="btn btn-ghost" data-k="again" type="button">Заново</button><button class="btn" data-k="send" type="button">${F.ic('send', 18)} Отправить</button>`;
     }
     ov.addEventListener('click', async e => {
       const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k;
       if (k === 'close') { cancelled = true; if (rec && rec.state !== 'inactive') rec.stop(); close(); }
-      else if (k === 'flip') { facing = facing === 'user' ? 'environment' : 'user'; if (!(rec && rec.state === 'recording')) open(); }
+      else if (k === 'flip') { if (switching) return; facing = facing === 'user' ? 'environment' : 'user'; b.classList.add('busy'); await openCam(false); b.classList.remove('busy'); }
       else if (k === 'rec') { if (rec && rec.state === 'recording') rec.stop(); else start(); }
-      else if (k === 'again') { ov.classList.remove('review'); ov.querySelector('.circ-bar').innerHTML = `<button class="icon-btn" data-k="close" type="button" aria-label="Закрыть">✕</button><button class="circ-rec" data-k="rec" type="button" aria-label="Запись"><i></i></button><button class="icon-btn" data-k="flip" type="button">${F.ic('camflip', 22)}</button>`; rb = ov.querySelector('.circ-rec'); v.loop = false; v.removeAttribute('src'); $t.textContent = '0:00 / 1:00'; prog.style.strokeDashoffset = 295.3; blob = null; await open(); }
+      else if (k === 'again') { ov.classList.remove('review'); ov.querySelector('.circ-bar').innerHTML = bar0(); v.loop = false; v.removeAttribute('src'); $t.textContent = '0:00 / 1:00'; prog.style.strokeDashoffset = 295.3; blob = null; facing = 'user'; mic && mic.getTracks().forEach(t => t.stop()); await openCam(true); paint(); }
       else if (k === 'send') { const bl = blob, d = dur; close(); done(bl, d); }
     });
-    await open();
+    if (await openCam(true)) paint();
   }
 
   F.chatmedia = { bubble, bind, sync, voice, circle, stopAudio };

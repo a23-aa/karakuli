@@ -5,7 +5,7 @@
 (function (F) {
   'use strict';
   const openC = new Set();
-  const NL = s => F.esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+  const NL = s => F.esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s>])#([\p{L}\p{N}_]{2,30})/gu, '$1<a class="tag" href="news.html?tag=$2">#$2</a>').replace(/(^|[\s>])@([A-Za-z0-9_]{3,30})/g, '$1<a class="mention" href="profile.html?u=$2">@$2</a>').replace(/\n/g, '<br>');
   const getPost = id => F.db().posts.find(p => p.id === id);
 
   function authorInfo(p) {
@@ -250,12 +250,15 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
   } else if (page === 'news') {
     F.page('news', { right: true }, (c, right) => {
       F.rightPanel(right);
-      let kind = 'recs', sort = 'new';
-      c.innerHTML = `<div class="toolbar"><h1 class="page-title">Новости</h1><select class="input" id="srt" style="width:auto"><option value="new">Сначала новые</option><option value="popular">Сначала популярные</option></select></div>
+      let kind = 'recs', sort = 'new'; const tag = (new URLSearchParams(location.search).get('tag') || '').toLowerCase().replace(/^#/, ''); if (tag) kind = 'all';
+      const tagsOf = t => (String(t || '').match(/#[\p{L}\p{N}_]{2,30}/gu) || []).map(x => x.slice(1).toLowerCase());
+      const trending = (() => { const cnt = {}, since = Date.now() - 7 * 864e5; F.db().posts.forEach(p => { if (p.ts > since) new Set(tagsOf(p.text)).forEach(t => { cnt[t] = (cnt[t] || 0) + 1; }); }); return Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 8); })();
+      c.innerHTML = `<div class="toolbar"><h1 class="page-title">${tag ? '#' + F.esc(tag) : 'Новости'}</h1><select class="input" id="srt" style="width:auto"><option value="new">Сначала новые</option><option value="popular">Сначала популярные</option></select></div>
 <div class="tabs" id="tb"><button class="tab active" data-k="recs">Рекомендации</button><button class="tab" data-k="all">Все записи</button><button class="tab" data-k="friends">Друзья</button><button class="tab" data-k="follows">Подписки</button><button class="tab" data-k="communities">Сообщества</button></div>
+${trending.length && !tag ? `<div class="card card-pad" style="margin-bottom:14px"><b style="display:block;margin-bottom:8px">🔥 Сейчас обсуждают</b><div class="trend">${trending.map(([t, n]) => `<a href="news.html?tag=${encodeURIComponent(t)}">#${F.esc(t)} <span class="muted">${n}</span></a>`).join('')}</div></div>` : ''}${tag ? '<p><a href="news.html">← Все новости</a></p>' : ''}
 <div id="feed" style="display:flex;flex-direction:column;gap:14px"></div>`;
       const feed = F.$('#feed', c), empties = { recs: 'Пока нечего рекомендовать', all: 'Записей пока нет', friends: 'У ваших друзей пока нет записей', follows: 'Подпишитесь на людей, чтобы видеть их записи здесь', communities: 'Подпишитесь на сообщества, чтобы видеть их записи' };
-      const draw = () => { F.$('#srt', c).hidden = kind === 'recs'; F.posts.mount(feed, () => F.posts.feed(kind, sort), { empty: empties[kind], recs: kind === 'recs' }); };
+      const draw = () => { F.$('#srt', c).hidden = kind === 'recs'; F.posts.mount(feed, () => tag ? F.posts.feed('all', sort).filter(p => tagsOf(p.text).includes(tag)) : F.posts.feed(kind, sort), { empty: tag ? 'Записей с этим тегом пока нет' : empties[kind], recs: kind === 'recs' && !tag }); };
       F.$('#tb', c).addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; kind = b.dataset.k; F.$$('.tab', c).forEach(t => t.classList.toggle('active', t === b)); draw(); });
       F.$('#srt', c).addEventListener('change', e => { sort = e.target.value; draw(); });
       draw(); flashHash();

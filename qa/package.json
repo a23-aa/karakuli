@@ -1,0 +1,1 @@
+{ "name": "karakuli-qa", "private": true, "description": "QA-клиент Каракулей: ходит по сайту и ищет ошибки", "scripts": { "qa": "node client.js" }, "devDependencies": { "playwright": "^1.48.0" } }

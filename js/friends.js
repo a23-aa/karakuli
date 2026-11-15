@@ -28,7 +28,7 @@
       else if (me.outgoing.includes(u.id)) { main = '<span class="muted small" style="align-self:center">Заявка отправлена</span>'; menu = [wr, folItem]; }
       else if (me.incoming.includes(u.id)) { main = fb('accept', u.id, 'Принять', 'btn btn-sm'); menu = [wr, folItem]; }
       else { main = fb('add', u.id, F.ic('plus', 16) + ' Добавить', 'btn btn-sm'); menu = [wr, folItem]; }
-      return `<div class="card pcard"><a class="ava-wrap" href="profile.html?id=${u.id}"><img class="ava ava-l" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot"></i>' : ''}</a>
+      return `<div class="card pcard"><a class="ava-wrap" href="profile.html?id=${u.id}" aria-label="Профиль"><img class="ava ava-l" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot"></i>' : ''}</a>
 <div class="grow"><a class="name" href="profile.html?id=${u.id}">${F.nameHTML(u, 16)}</a>${u.username ? `<div class="muted small">@${F.esc(u.username)}</div>` : ''}<div class="st">${F.esc(u.status || '')}</div><div class="btns">${main}${F.menuHTML(menu)}</div></div></div>`;
     }
 
