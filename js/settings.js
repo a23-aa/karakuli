@@ -62,7 +62,13 @@ ${row('online', 'privacy', 'Показывать, что я онлайн', 'Ес
         F.$('#p-pr', box).onchange = e => { p.profile = e.target.value; F.save(); F.toast('Сохранено'); };
         F.$('#p-ms', box).onchange = e => { p.messages = e.target.value; F.save(); F.toast('Сохранено'); };
       } else if (tab === 'notify') {
-        box.innerHTML = `<h2 class="sec-title">Уведомления</h2>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('follow', 'notify', 'Новые подписчики')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
+        box.innerHTML = `<h2 class="sec-title">Уведомления</h2><div class="card card-pad" id="pushbox" style="margin-bottom:12px"><b>Уведомления на этом устройстве</b><div class="muted small" id="push-st">Проверяем…</div><div style="margin-top:8px"><button class="btn btn-sm" id="push-btn" hidden></button></div></div>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('follow', 'notify', 'Новые подписчики')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
+        (async () => {
+          const st = F.push ? await F.push.status() : 'unsupported', t = F.$('#push-st', box), bt = F.$('#push-btn', box); if (!t) return;
+          const txt = { on: 'Включены: сообщения, звонки и ивенты придут, даже когда сайт закрыт.', off: 'Выключены. Включите, чтобы получать сообщения, звонки и начало ивентов, когда сайт закрыт.', denied: 'Запрещены в настройках браузера. Разрешите уведомления для этого сайта и обновите страницу.', unsupported: 'Этот браузер не поддерживает push-уведомления.', install: 'На iPhone/iPad: нажмите «Поделиться» → «На экран “Домой”», откройте Каракули с иконки и вернитесь сюда.' };
+          t.textContent = txt[st]; bt.hidden = st !== 'on' && st !== 'off'; bt.textContent = st === 'on' ? 'Выключить' : 'Включить';
+          bt.onclick = async () => { bt.disabled = true; try { if (st === 'on') await F.push.disable(); else await F.push.enable(); F.toast(st === 'on' ? 'Выключено' : 'Включено'); } catch (e) { F.toast(String(e.message || e)); } draw(); };
+        })();
       } else if (tab === 'security') {
         const prov = ((F.authUser() || {}).app_metadata || {}).provider || 'email', byMail = prov === 'email';
         box.innerHTML = `<h2 class="sec-title">Безопасность</h2>

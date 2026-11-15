@@ -930,3 +930,189 @@ begin
 end $$;
 -- @@
 notify pgrst, 'reload schema';
+
+-- ================= migration 006: медиа и звонки =================
+
+alter table public.messages add column if not exists kind     text not null default 'text';
+alter table public.messages add column if not exists duration int;
+alter table public.messages add column if not exists file_name text;
+-- @@
+alter table public.messages drop constraint if exists messages_kind_check;
+alter table public.messages add constraint messages_kind_check check (kind in ('text','photo','video','voice','circle','file','call'));
+-- @@
+-- хранилище для видео, голосовых, кружков и файлов: публичное чтение, загрузка только в свою папку, до 50 МБ
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('files', 'files', true, 52428800, array[
+  'video/mp4','video/webm','video/quicktime','audio/webm','audio/ogg','audio/mp4','audio/mpeg','audio/aac','audio/x-m4a','audio/wav',
+  'image/jpeg','image/png','image/webp','image/gif','application/pdf','text/plain','application/zip',
+  'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+on conflict (id) do update set file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+-- @@
+drop policy if exists files_read   on storage.objects;
+create policy files_read   on storage.objects for select using (bucket_id = 'files');
+drop policy if exists files_upload on storage.objects;
+create policy files_upload on storage.objects for insert to authenticated
+  with check (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text and not public.is_banned());
+drop policy if exists files_delete on storage.objects;
+create policy files_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text);
+-- @@
+-- сигналы для звонков (WebRTC): отправитель проверяется базой, получатель видит только свои
+create table if not exists public.call_signals (
+  id           bigint generated always as identity primary key,
+  call_id      uuid not null,
+  sender_id    uuid not null references public.profiles(id) on delete cascade,
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  kind         text not null check (kind in ('offer','answer','ice','end','decline')),
+  payload      jsonb not null default '{}'::jsonb,
+  created_at   timestamptz not null default now()
+);
+create index if not exists call_signals_rcpt on public.call_signals (recipient_id, id);
+alter table public.call_signals enable row level security;
+-- @@
+drop policy if exists cs_select on public.call_signals;
+create policy cs_select on public.call_signals for select to authenticated using (recipient_id = auth.uid() or sender_id = auth.uid());
+drop policy if exists cs_insert on public.call_signals;
+create policy cs_insert on public.call_signals for insert to authenticated with check (sender_id = auth.uid() and recipient_id <> auth.uid() and not public.is_banned());
+drop policy if exists cs_delete on public.call_signals;
+create policy cs_delete on public.call_signals for delete to authenticated using (sender_id = auth.uid() or recipient_id = auth.uid());
+revoke all on public.call_signals from anon;
+grant select, insert, delete on public.call_signals to authenticated;
+-- @@
+do $$ begin
+  alter publication supabase_realtime add table public.call_signals;
+exception when duplicate_object then null; when undefined_object then null; end $$;
+-- @@
+-- старые сигналы чистятся при каждой новой отправке (больше часа)
+create or replace function public.call_signals_gc() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  delete from call_signals where created_at < now() - interval '1 hour';
+  return null;
+end $$;
+-- @@
+drop trigger if exists call_signals_gc_trg on public.call_signals;
+create trigger call_signals_gc_trg after insert on public.call_signals for each statement execute function public.call_signals_gc();
+-- @@
+notify pgrst, 'reload schema';
+
+-- ================= migration 007: push-уведомления =================
+
+do $$ begin create extension if not exists pg_net; exception when others then raise notice 'pg_net: %', sqlerrm; end $$;
+-- @@
+create table if not exists public.push_subscriptions (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  endpoint   text not null unique,
+  p256dh     text not null,
+  auth       text not null,
+  ua         text,
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+revoke all on public.push_subscriptions from anon, authenticated;
+-- @@
+-- настройки отправки: читает только Edge Function и функции базы (доступа с сайта нет)
+create table if not exists public.push_config (key text primary key, value text not null);
+alter table public.push_config enable row level security;
+revoke all on public.push_config from anon, authenticated;
+insert into public.push_config (key, value) values
+  ('url', 'https://dwqaopsvburojrjxrdls.supabase.co/functions/v1/push'),
+  ('vapid_public', 'BETp-sabCJLZVsv8suGTfWoK3yaFrzSpJlFc02KRDWdsXCr_zxUbS-rVqS_bOraSi7vnXoPGluhFziP6hbf5skE'),
+  ('vapid_subject', 'https://a23-aa.github.io/karakuli/'),
+  ('secret', md5(random()::text || clock_timestamp()::text) || md5(random()::text || clock_timestamp()::text))
+on conflict (key) do nothing;
+-- @@
+create or replace function public.push_register(p_endpoint text, p_p256dh text, p_auth text, p_ua text default null) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'нужно войти'; end if;
+  insert into push_subscriptions (user_id, endpoint, p256dh, auth, ua) values (auth.uid(), p_endpoint, p_p256dh, p_auth, p_ua)
+    on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, ua = excluded.ua;
+end $$;
+-- @@
+create or replace function public.push_unregister(p_endpoint text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from push_subscriptions where endpoint = p_endpoint and user_id = auth.uid();
+end $$;
+-- @@
+grant execute on function public.push_register(text,text,text,text), public.push_unregister(text) to authenticated;
+-- @@
+-- отправка: p_user = null → всем подписанным. Любая ошибка здесь никогда не мешает основному действию.
+create or replace function public.push_send(p_user uuid, p_title text, p_body text, p_url text, p_tag text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_url text; v_secret text;
+begin
+  if p_user is not null and not exists (select 1 from push_subscriptions where user_id = p_user) then return; end if;
+  select value into v_url from push_config where key = 'url';
+  select value into v_secret from push_config where key = 'secret';
+  if v_url is null or v_secret is null then return; end if;
+  perform net.http_post(url := v_url,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', v_secret),
+    body := jsonb_build_object('user_id', p_user, 'title', p_title, 'body', p_body, 'url', p_url, 'tag', p_tag));
+exception when others then null;
+end $$;
+-- @@
+-- любое уведомление сайта (сообщение, лайк, заявка, подписка…) → push
+create or replace function public.push_on_notification() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_name text; v_body text; r record;
+begin
+  if new.type = 'community_post' then select name into v_name from communities where id = new.community_id;
+  else select trim(first_name || ' ' || last_name) into v_name from profiles where id = new.from_id; end if;
+  if new.type = 'message' then
+    select kind, body into r from messages where sender_id = new.from_id and recipient_id = new.user_id order by created_at desc limit 1;
+    if r.kind = 'call' then return null; end if;
+    v_body := case r.kind when 'voice' then '🎤 Голосовое сообщение' when 'circle' then '⭕ Кружок' when 'video' then '🎬 Видео' when 'photo' then '📷 Фото' when 'file' then '📎 Файл'
+      else left(coalesce(nullif(r.body, ''), 'Новое сообщение'), 140) end;
+  else
+    v_body := case new.type when 'like' then 'оценил(а) вашу запись' when 'comment' then 'прокомментировал(а) вашу запись' when 'friend_request' then 'отправил(а) вам заявку в друзья'
+      when 'friend_accept' then 'принял(а) вашу заявку в друзья' when 'community_post' then 'опубликовало новую запись' when 'repost' then 'поделился(ась) вашей записью'
+      when 'follow' then 'подписался(-ась) на вас' else 'новое уведомление' end;
+  end if;
+  perform push_send(new.user_id, coalesce(nullif(v_name, ''), 'Каракули'), v_body, coalesce(nullif(new.link, ''), 'notifications.html'),
+    case when new.type = 'message' then 'msg-' || new.from_id::text else null end);
+  return null;
+end $$;
+-- @@
+drop trigger if exists push_on_notification_trg on public.notifications;
+create trigger push_on_notification_trg after insert on public.notifications for each row execute function public.push_on_notification();
+-- @@
+-- входящий звонок
+create or replace function public.push_on_call() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_name text;
+begin
+  if new.kind <> 'offer' then return null; end if;
+  select trim(first_name || ' ' || last_name) into v_name from profiles where id = new.sender_id;
+  perform push_send(new.recipient_id, coalesce(nullif(v_name, ''), 'Каракули'), case when (new.payload->>'video')::boolean then '📹 Видеозвонок' else '📞 Входящий звонок' end,
+    'messages.html?u=' || new.sender_id::text, 'call');
+  return null;
+end $$;
+-- @@
+drop trigger if exists push_on_call_trg on public.call_signals;
+create trigger push_on_call_trg after insert on public.call_signals for each row execute function public.push_on_call();
+-- @@
+-- ивенты: за 10 минут до начала и в момент старта (проверяется раз в минуту)
+alter table public.events add column if not exists push_soon boolean not null default false;
+alter table public.events add column if not exists push_sent boolean not null default false;
+-- @@
+create or replace function public.push_due_events() returns void
+language plpgsql security definer set search_path = public as $$
+declare e record;
+begin
+  for e in update events set push_sent = true, push_soon = true where not push_sent and starts_at <= now() and ends_at > now() returning title loop
+    perform push_send(null, '🎮 ' || e.title, 'Ивент начался! Заходите.', 'events.html', 'event');
+  end loop;
+  for e in update events set push_soon = true where not push_soon and not push_sent and starts_at > now() and starts_at <= now() + interval '10 minutes' returning title, starts_at loop
+    perform push_send(null, '⏰ ' || e.title, 'Ивент начнётся через несколько минут', 'events.html', 'event');
+  end loop;
+end $$;
+-- @@
+do $$ begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('karakuli-push-events', '* * * * *', 'select public.push_due_events()');
+exception when others then raise notice 'pg_cron недоступен: % — включите расширение pg_cron в Database → Extensions', sqlerrm; end $$;
+-- @@
+notify pgrst, 'reload schema';

@@ -9,7 +9,9 @@
     c.innerHTML = `<div class="toolbar"><h1 class="page-title">Портал ивентов</h1>${me.isAdmin ? '<a class="btn btn-ghost btn-sm" href="admin.html?tab=events">Управлять ивентами</a>' : ''}</div><div id="ev"></div><div id="hub"></div>`;
     const box = F.$('#ev', c);
     const when = ms => new Date(ms).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    const portal = `<svg class="portal-art" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><ellipse cx="60" cy="60" rx="34" ry="52" fill="none" stroke="currentColor" stroke-width="5" opacity=".95"/><ellipse class="pr2" cx="60" cy="60" rx="21" ry="36" fill="none" stroke="currentColor" stroke-width="4" opacity=".75"/><ellipse class="pr3" cx="60" cy="60" rx="9" ry="19" fill="currentColor" opacity=".55"/><path d="M14 22l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM103 84l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" fill="currentColor"/></svg>`;
+    const portal = (() => { const pat = ['00011000','00111100','01111110','11111111','01111110','01100110','11000011','10000001'], cols = ['#4f6df5', '#8b6cf0', '#f0577d', '#ffb347']; // статичная пиксельная «звезда»
+      return `<svg class="ev-art" viewBox="0 0 96 96" width="112" height="112" aria-hidden="true">${pat.map((r, y) => [...r].map((v, x) => v === '1' ? `<rect x="${x * 12}" y="${y * 12}" width="11" height="11" rx="2.5" fill="${cols[(Math.min(x, 7 - x) + y) % 4]}"/>` : '').join('')).join('')}</svg>`; })();
+    const cdBlocks = ms => { const m = String(E.clock(ms)).match(/^(?:(\d+) д )?(\d\d):(\d\d):(\d\d)$/) || [], u = [['д', m[1]], ['час', m[2]], ['мин', m[3]], ['сек', m[4]]].filter(x => x[1] != null); return u.map(x => `<span class="cdb"><b>${x[1]}</b><i>${x[0]}</i></span>`).join(''); };
 
     const RULES = { team_war: 'Две команды, игроки распределяются поровну. Побеждает команда, у которой в конце больше пикселей.', solo: 'Команд нет — каждый сам за себя. Побеждает игрок, у которого в конце больше всего своих пикселей на поле.' };
     function playCard(e, live) {
@@ -35,20 +37,20 @@ ${hubTab === 'rating' ? (mine ? `<p class="small">Ваш результат: <b>
     function draw() {
       const { active, next } = E.state(list), t = E.now();
       if (active) {
-        box.innerHTML = `<section class="card portal-card live">${portal}<div class="portal-body"><span class="live-tag">Идёт сейчас</span><h2>${F.esc(active.title)}</h2>${active.description ? `<p>${F.esc(active.description).replace(/\n/g, '<br>')}</p>` : ''}
-<div class="cd-label">Закончится через</div><div class="cd" data-end="${Date.parse(active.ends_at)}">${E.clock(Date.parse(active.ends_at) - t)}</div></div></section>
+        box.innerHTML = `<section class="card ev-hero live">${portal}<div class="ev-body"><span class="live-tag"><i></i>Идёт сейчас</span><h2>${F.esc(active.title)}</h2>${active.description ? `<p>${F.esc(active.description).replace(/\n/g, '<br>')}</p>` : ''}
+<div class="cd-label">Закончится через</div><div class="cd" data-end="${Date.parse(active.ends_at)}">${cdBlocks(Date.parse(active.ends_at) - t)}</div></div></section>
 ${active.kind === 'pixelbattle' ? playCard(active, true) : `<section class="card card-pad event-stage"><div class="empty">${F.ic('portal', 44)}<div><b>Ивент запущен</b></div><p class="muted small">Следите за этой страницей.</p></div></section>`}`;
       } else if (next) {
-        box.innerHTML = `<section class="card portal-card">${portal}<div class="portal-body"><span class="live-tag soon">Скоро</span><h2>${F.esc(next.title)}</h2>${next.description ? `<p>${F.esc(next.description).replace(/\n/g, '<br>')}</p>` : ''}
-<div class="cd-label">До начала</div><div class="cd" data-start="${Date.parse(next.starts_at)}">${E.clock(Date.parse(next.starts_at) - t)}</div><div class="muted-on small">Начало: ${when(Date.parse(next.starts_at))}</div></div></section>${next.kind === 'pixelbattle' ? playCard(next, false) : ''}`;
+        box.innerHTML = `<section class="card ev-hero">${portal}<div class="ev-body"><span class="live-tag soon">Скоро</span><h2>${F.esc(next.title)}</h2>${next.description ? `<p>${F.esc(next.description).replace(/\n/g, '<br>')}</p>` : ''}
+<div class="cd-label">До начала</div><div class="cd" data-start="${Date.parse(next.starts_at)}">${cdBlocks(Date.parse(next.starts_at) - t)}</div><div class="muted-on small">Начало: ${when(Date.parse(next.starts_at))}</div></div></section>${next.kind === 'pixelbattle' ? playCard(next, false) : ''}`;
       } else {
-        box.innerHTML = `<section class="card portal-card idle">${portal}<div class="portal-body"><h2>Ждите ивента</h2><p>Сейчас ивентов нет. Когда появится новый, он откроется здесь.</p>${failed && me.isAdmin ? '<p class="small">Администратору: выполните в Supabase файл migration_003_social.sql, чтобы подключить ивенты.</p>' : ''}</div></section>`;
+        box.innerHTML = `<section class="card ev-hero idle">${portal}<div class="ev-body"><h2>Ждите ивента</h2><p>Сейчас ивентов нет. Когда появится новый, он откроется здесь.</p>${failed && me.isAdmin ? '<p class="small">Администратору: выполните в Supabase файл migration_003_social.sql, чтобы подключить ивенты.</p>' : ''}</div></section>`;
       }
     }
     function tickAll() {
       const t = E.now(); let flip = false;
-      F.$$('[data-end]', box).forEach(el => { const ms = +el.dataset.end - t; el.textContent = E.clock(ms); if (ms <= 0) flip = true; });
-      F.$$('[data-start]', box).forEach(el => { const ms = +el.dataset.start - t; el.textContent = E.clock(ms); if (ms <= 0) flip = true; });
+      F.$$('[data-end]', box).forEach(el => { const ms = +el.dataset.end - t; el.innerHTML = cdBlocks(ms); if (ms <= 0) flip = true; });
+      F.$$('[data-start]', box).forEach(el => { const ms = +el.dataset.start - t; el.innerHTML = cdBlocks(ms); if (ms <= 0) flip = true; });
       if (flip) { draw(); load(); }
     }
     async function load() {

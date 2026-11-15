@@ -55,7 +55,18 @@
     friends: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5 M16 4.8a3 3 0 0 1 0 5.6 M18 14.8c2 .7 3.5 2.3 3.5 5.2"/>',
     groups: '<circle cx="12" cy="8" r="3"/><path d="M7 20c0-3 2-5 5-5s5 2 5 5 M5 9.5a2.5 2.5 0 1 0 .5 4.5 M19 9.5a2.5 2.5 0 1 1-.5 4.5"/>',
     photo: '<path d="M4 7h4l2-2.5h4L16 7h4v12H4z"/><circle cx="12" cy="13" r="3.6"/>',
-    portal: '<ellipse cx="12" cy="12" rx="6.5" ry="9.5"/><ellipse cx="12" cy="12" rx="2.6" ry="5.6"/><path d="M3 4.5l.6 1.4 1.4.6-1.4.6L3 8.5l-.6-1.4L1 6.5l1.4-.6zM21 15.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
+    video: '<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3z"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+    micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M4 4l16 16"/>',
+    phone: '<path d="M5 4h4l1.6 4.2-2.2 1.4a11 11 0 0 0 5.9 5.9l1.4-2.2L20 15v4a1.5 1.5 0 0 1-1.6 1.5A15.5 15.5 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/>',
+    hangup: '<path d="M3 14.5c5-4.5 13-4.5 18 0l-2.4 2.6-3.2-1.6v-2.6a9 9 0 0 0-6.8 0v2.6l-3.2 1.6z"/>',
+    clip: '<path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4"/>',
+    play: '<path d="M7 4.5v15l12-7.5z"/>',
+    pause: '<path d="M7 4.5h3.5v15H7zM13.5 4.5H17v15h-3.5z"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+    camflip: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><path d="M9.5 13.5a2.7 2.7 0 0 1 5 0M14.5 13.5l.2-1.6M14.5 13.5l-1.6.2"/>',
+    portal: '<path d="M12 3l2.5 5.6L20.5 9l-4.5 4.1 1.3 6L12 16l-5.3 3.1 1.3-6L3.5 9l6-.4z"/>',
     more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
     shield: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
     settings: '<path d="M4 7h9 M17 7h3 M4 17h3 M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
@@ -252,11 +263,11 @@
   /* ---------- сообщения ---------- */
   F.dkey = (a, b) => [a, b].sort().join('_');
   F.dialog = other => F.db().messages[F.dkey(F.sessionId(), other)] || [];
-  F.sendMessage = (to, text, photo) => {
+  F.sendMessage = (to, text, photo, extra) => {
     const me = F.me(), u = F.user(to); if (!u) return false;
     if (u.settings && u.settings.privacy.messages === 'friends' && !F.areFriends(me.id, to)) { F.toast('Пользователь принимает сообщения только от друзей'); return false; }
     const k = F.dkey(me.id, to), d = F.db();
-    (d.messages[k] = d.messages[k] || []).push({ id: F.uid('m'), from: me.id, to, text: text || '', photo: photo || null, ts: Date.now(), read: false });
+    (d.messages[k] = d.messages[k] || []).push({ id: F.uid('m'), from: me.id, to, text: text || '', photo: photo || null, kind: (extra && extra.kind) || (photo ? 'photo' : 'text'), dur: (extra && extra.dur) || 0, fname: (extra && extra.fname) || '', ts: Date.now(), read: false });
     F.notify(to, 'message', me.id, { link: 'messages.html?u=' + me.id });
     if (!F.save()) { d.messages[k].pop(); return false; }
     return true;
@@ -327,6 +338,13 @@
       { label: 'Отмена', cls: 'btn-ghost', onClick: a => { done = true; a.close(); res(false); } },
       { label: ok || 'Да', cls: 'btn-danger', onClick: a => { done = true; a.close(); res(true); } }], onClose: () => { if (!done) res(false); } });
   });
+  F.pickFile = accept => new Promise(res => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = accept || '*/*'; inp.style.display = 'none'; document.body.appendChild(inp);
+    inp.addEventListener('change', () => { const f = inp.files[0] || null; inp.remove(); res(f); });
+    inp.addEventListener('cancel', () => { inp.remove(); res(null); });
+    inp.click();
+  });
+  F.isVideoUrl = u => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(u || ''));
   F.lightbox = (list, i) => {
     list = [].concat(list); i = i || 0;
     const ov = document.createElement('div'); ov.className = 'lb'; document.body.appendChild(ov); document.body.classList.add('no-scroll');
@@ -546,7 +564,7 @@ ${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни ро
     F.applyPrefs(); F.hideLoader();
     if ((opts || {}).bare) document.body.insertAdjacentHTML('beforeend', '<div id="content"></div>'); else F.mount(key, opts || {});
     if (fn) fn(F.$('#content'), F.$('#right'), F.me());
-    F.live(); F.eventPulse();
+    F.live(); F.eventPulse(); if (F.calls) F.calls.init(); if (F.push) F.push.init();
     const m = F.me();
     if (m.banned) document.body.insertAdjacentHTML('afterbegin', `<div class="ban-bar">Ваш аккаунт заблокирован администратором${m.banReason ? ': ' + F.esc(m.banReason) : ''}. Вы можете читать, но не можете публиковать.</div>`);
     if (!m.username) F.askUsername();

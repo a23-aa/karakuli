@@ -147,7 +147,7 @@
     DB.messages = {};
     d.messages.slice().reverse().forEach(m => {
       const k = F.dkey(m.sender_id, m.recipient_id);
-      (DB.messages[k] = DB.messages[k] || []).push({ id: m.id, from: m.sender_id, to: m.recipient_id, text: m.body || '', photo: m.photo_url || null, ts: ts(m.created_at), read: !!m.is_read });
+      (DB.messages[k] = DB.messages[k] || []).push({ id: m.id, from: m.sender_id, to: m.recipient_id, text: m.body || '', photo: m.photo_url || null, kind: m.kind || (m.photo_url ? 'photo' : 'text'), dur: m.duration || 0, fname: m.file_name || '', ts: ts(m.created_at), read: !!m.is_read });
     });
     DB.notifications = d.notifications.map(n => ({ id: n.id, userId: n.user_id, type: n.type, fromId: n.from_id || n.community_id, ts: ts(n.created_at), read: !!n.is_read, link: n.link || '' }));
   }
@@ -238,7 +238,7 @@
       u.bookmarks.photos.forEach(id => put('bookmarks', 'photo:' + id, { user_id: me, kind: 'photo', target_id: id }, {}, { user_id: me, kind: 'photo', target_id: id }));
       u.bookmarks.links.forEach(l => put('bookmarks', 'link:' + l.id, { id: l.id, user_id: me, kind: 'link', url: l.url, title: l.title }, { created_at: iso(l.ts) }));
     }
-    Object.values(DB.messages).forEach(arr => arr.forEach(m => put('messages', m.id, { id: m.id, sender_id: m.from, recipient_id: m.to, body: m.text || '', photo_url: m.photo || null, is_read: !!m.read }, { created_at: iso(m.ts) })));
+    Object.values(DB.messages).forEach(arr => arr.forEach(m => put('messages', m.id, { id: m.id, sender_id: m.from, recipient_id: m.to, body: m.text || '', photo_url: m.photo || null, is_read: !!m.read }, Object.assign({ created_at: iso(m.ts) }, m.kind && m.kind !== 'text' && m.kind !== 'photo' ? { kind: m.kind, duration: m.dur || null, file_name: m.fname || null } : {}))));
     DB.notifications.forEach(n => {
       const byUser = n.type !== 'community_post';
       put('notifications', n.id, { id: n.id, user_id: n.userId, from_id: byUser ? n.fromId : null, community_id: byUser ? null : n.fromId, type: n.type, link: n.link || '', is_read: !!n.read }, { created_at: iso(n.ts) });
@@ -256,6 +256,17 @@
     if (r.error) throw new Error(nice(r.error.message));
     return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
   }
+  /* видео, голосовые, кружки и файлы: загружаем сразу и получаем ссылку (бакет «files», до 50 МБ) */
+  const EXT = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/aac': 'aac', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav', 'application/pdf': 'pdf', 'text/plain': 'txt', 'application/zip': 'zip', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+  F.uploadFile = async (blob, name) => {
+    const type = String(blob.type || 'application/octet-stream').split(';')[0].toLowerCase();
+    const ext = EXT[type] || ((String(name || '').match(/\.([a-z0-9]{1,5})$/i) || [])[1] || 'bin').toLowerCase();
+    if (blob.size > 50 * 1024 * 1024) throw new Error('Файл больше 50 МБ');
+    const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const r = await sb.storage.from('files').upload(path, blob, { contentType: type, cacheControl: '31536000' });
+    if (r.error) throw new Error(/bucket not found|not found/i.test(r.error.message) ? 'Не выполнена миграция 006 (хранилище «files»)' : nice(r.error.message));
+    return sb.storage.from('files').getPublicUrl(path).data.publicUrl;
+  };
   async function resolveMedia() {
     const jobs = [], add = (obj, key, idx) => { const v = idx == null ? obj[key] : obj[key][idx]; if (isData(v)) jobs.push({ obj, key, idx, v }); };
     const me = DB.users[session.user.id]; if (me) { add(me, 'avatar'); add(me, 'cover'); }

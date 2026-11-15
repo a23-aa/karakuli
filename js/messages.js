@@ -26,7 +26,7 @@
       dlgs.innerHTML = arr.length ? arr.map(t => {
         const u = F.user(t.other), l = t.last;
         return `<div class="dlg${t.other === cur ? ' active' : ''}" data-u="${t.other}"><span class="ava-wrap"><img class="ava ava-m" src="${F.avatar(u)}" alt="">${F.isOnline(u) ? '<i class="online-dot" style="width:11px;height:11px"></i>' : ''}</span>
-<div class="grow"><div class="top"><b>${F.nameHTML(u, 14)}</b><span class="time">${l ? F.shortTime(l.ts) : ''}</span></div><div class="bt"><span class="last">${l ? (l.from === me.id ? 'Вы: ' : '') + (l.photo && !l.text ? '📷 Фото' : F.esc(l.text)) : 'Новый диалог'}</span>${t.unread ? `<b class="badge" style="margin:0">${t.unread}</b>` : ''}</div></div></div>`;
+<div class="grow"><div class="top"><b>${F.nameHTML(u, 14)}</b><span class="time">${l ? F.shortTime(l.ts) : ''}</span></div><div class="bt"><span class="last">${l ? F.msgPreview(l, me.id) : 'Новый диалог'}</span>${t.unread ? `<b class="badge" style="margin:0">${t.unread}</b>` : ''}</div></div></div>`;
       }).join('') : `<div class="chat-empty">${filter === 'unread' ? 'Непрочитанных нет' : 'Диалогов пока нет'}</div>`;
     }
     function renderPane(keepInput) {
@@ -38,20 +38,29 @@
       let last = '', html = '';
       msgs.forEach(m => {
         const day = F.fmtDate(m.ts); if (day !== last) { html += `<div class="day">${day === F.fmtDate(Date.now()) ? 'Сегодня' : day}</div>`; last = day; }
-        html += `<div class="msg${m.from === me.id ? ' mine' : ''}">${m.photo ? `<img src="${m.photo}" alt="Фото" data-lb="${m.id}">` : ''}${m.text ? F.esc(m.text).replace(/\n/g, '<br>') : ''}<div class="mt">${F.fmtTime(m.ts)}</div></div>`;
+        if (m.kind === 'call') { html += `<div class="mcall">${F.ic(m.text && /Пропущ|Отклон/.test(m.text) ? 'hangup' : 'phone', 16)} ${F.esc(m.text || 'Звонок')} · ${F.fmtTime(m.ts)}</div>`; return; }
+        html += `<div class="msg${m.from === me.id ? ' mine' : ''}${m.kind === 'circle' ? ' is-circle' : ''}${m.kind === 'voice' ? ' is-voice' : ''}">${F.chatmedia.bubble(m)}${m.text ? F.esc(m.text).replace(/\n/g, '<br>') : ''}<div class="mt">${F.fmtTime(m.ts)}</div></div>`;
       });
-      if (keepInput && F.$('#msgs', pane)) { const box = F.$('#msgs', pane), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80; box.innerHTML = html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'; if (atEnd) box.scrollTop = box.scrollHeight; return; }
+      if (keepInput && F.$('#msgs', pane)) { const box = F.$('#msgs', pane), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80; if (box._html === html) return; box._html = html; box.innerHTML = html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'; if (atEnd) box.scrollTop = box.scrollHeight; F.chatmedia.sync(box); return; }
       pane.innerHTML = `<div class="chat-head"><button class="icon-btn chat-back" id="back" aria-label="Назад">${F.ic('back')}</button><a href="profile.html?id=${u.id}"><img class="ava ava-m" src="${F.avatar(u)}" alt=""></a>
-<div class="grow"><a href="profile.html?id=${u.id}" style="color:var(--ink);font-weight:800">${F.nameHTML(u, 15)}</a><div>${F.isOnline(u) ? '<span class="on-text">online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div></div>
+<div class="grow"><a href="profile.html?id=${u.id}" style="color:var(--ink);font-weight:800">${F.nameHTML(u, 15)}</a><div>${F.isOnline(u) ? '<span class="on-text">online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div>
+<button class="icon-btn" data-call="audio" title="Позвонить" aria-label="Позвонить">${F.ic('phone', 20)}</button><button class="icon-btn" data-call="video" title="Видеозвонок" aria-label="Видеозвонок">${F.ic('video', 22)}</button></div>
 <div class="msgs" id="msgs">${html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'}</div>
 <div class="chat-attach" id="att" hidden></div>
-<div class="chat-input"><button class="icon-btn" id="pick" title="Прикрепить фото" aria-label="Прикрепить фото">${F.ic('photo', 22)}</button><textarea class="input" id="mt" rows="1" maxlength="2000" placeholder="Написать сообщение…"></textarea><button class="btn" id="send" aria-label="Отправить">${F.ic('send', 18)}</button></div>`;
-      const box = F.$('#msgs', pane); box.scrollTop = box.scrollHeight; drawAttach();
+<div class="chat-input" id="cin"><span class="menu-wrap"><button class="icon-btn" data-menu title="Прикрепить" aria-label="Прикрепить" aria-haspopup="true">${F.ic('clip', 22)}</button><span class="menu-pop" role="menu"><button id="pick">${F.ic('photo', 18)} Фото</button><button data-att="video">${F.ic('video', 18)} Видео</button><button data-att="file">${F.ic('file', 18)} Файл</button><button data-att="circle">${F.ic('camflip', 18)} Кружок</button></span></span><textarea class="input" id="mt" rows="1" maxlength="2000" placeholder="Написать сообщение…"></textarea><button class="icon-btn" id="mic" title="Голосовое сообщение" aria-label="Голосовое сообщение">${F.ic('mic', 22)}</button><button class="btn" id="send" aria-label="Отправить">${F.ic('send', 18)}</button></div>`;
+      const box = F.$('#msgs', pane); box._html = html; box.scrollTop = box.scrollHeight; drawAttach(); F.chatmedia.bind(box); F.chatmedia.sync(box);
     }
     function drawAttach() { const a = F.$('#att', pane); if (!a) return; a.hidden = !attach; a.innerHTML = attach ? `<div class="prev"><img src="${attach}" alt=""><button data-rmatt type="button">×</button></div>` : ''; }
     function send() {
       const ta = F.$('#mt', pane), t = ta.value.trim(); if (!t && !attach) return;
       if (F.sendMessage(cur, t, attach)) { ta.value = ''; attach = null; renderPane(); renderList(); }
+    }
+    /** Загружает файл/запись в хранилище и отправляет сообщением. */
+    async function sendMedia(blob, kind, dur, name) {
+      const to = cur, ta = F.$('#mt', pane), cap = ta ? ta.value.trim() : '';
+      const tip = F.toast; F.toast('Отправляем…');
+      try { const url = await F.uploadFile(blob, name); if (F.sendMessage(to, kind === 'file' || kind === 'video' ? cap : '', url, { kind, dur, fname: name })) { if (cur === to && ta && (kind === 'file' || kind === 'video')) ta.value = ''; renderPane(); renderList(); } }
+      catch (err) { tip(String(err.message || err)); }
     }
     function open(id) { cur = id; attach = null; chat.classList.add('open'); renderList(); renderPane(); history.replaceState(null, '', 'messages.html?u=' + id); }
 
@@ -61,6 +70,20 @@
       if (e.target.closest('#back')) { chat.classList.remove('open'); cur = null; renderList(); renderPane(); history.replaceState(null, '', 'messages.html'); return; }
       if (e.target.closest('#send')) { send(); return; }
       if (e.target.closest('#pick')) { F.pickImages(false, 900).then(r => { if (r[0]) { attach = r[0]; drawAttach(); } }); return; }
+      const cl = e.target.closest('[data-call]'); if (cl) { if (F.calls) F.calls.start(cur, cl.dataset.call === 'video'); else F.toast('Звонки недоступны'); return; }
+      if (e.target.closest('#mic')) { F.chatmedia.voice(F.$('#cin', pane), (blob, dur) => sendMedia(blob, 'voice', dur, 'voice')); return; }
+      const at = e.target.closest('[data-att]');
+      if (at) {
+        const k = at.dataset.att;
+        if (k === 'circle') { F.chatmedia.circle((blob, dur) => sendMedia(blob, 'circle', dur, 'circle')); return; }
+        F.pickFile(k === 'video' ? 'video/*' : '.pdf,.txt,.zip,.doc,.docx,application/pdf,text/plain,application/zip').then(f => {
+          if (!f) return;
+          if (k === 'video' && !/^video\//.test(f.type)) { F.toast('Это не видео'); return; }
+          if (f.size > (k === 'video' ? 30 : 20) * 1024 * 1024) { F.toast((k === 'video' ? 'Видео больше 30 МБ' : 'Файл больше 20 МБ')); return; }
+          sendMedia(f, k, 0, f.name);
+        });
+        return;
+      }
       if (e.target.closest('[data-rmatt]')) { attach = null; drawAttach(); return; }
       const im = e.target.closest('[data-lb]'); if (im) { F.lightbox(im.src); return; }
       if (e.target.closest('#newd')) {
