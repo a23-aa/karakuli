@@ -8,9 +8,8 @@
   const PALETTE = ['#ffffff', '#c4c4c4', '#6d6d6d', '#000000', '#ff3d5a', '#ff9f1c', '#ffe14d', '#9be564', '#1fbf75', '#22d3ee', '#2e8bff', '#3b3fe0', '#8f5bff', '#e254d8', '#ff7aa8', '#8a5a3b'];
   const TEAMS = [{ name: 'Огонь', c: '#ff4d6d' }, { name: 'Лёд', c: '#35c8ff' }];
   const MODES = {
-    team_war: ['TEAM WAR', 'Побеждает команда, у которой в конце больше всего пикселей.'],
-    territory_rush: ['TERRITORY RUSH', 'Поле поделено на 400 зон. Зона у команды, у которой в ней больше пикселей. Побеждает та, что держит больше зон.'],
-    pixel_domination: ['PIXEL DOMINATION', 'Считаются пиксели, но центр поля (200×200) стоит втрое дороже. Захватите середину!']
+    team_war: ['С КОМАНДАМИ', 'Две команды, игроки распределяются поровну. Побеждает команда, у которой в конце больше пикселей.'],
+    solo: ['КАЖДЫЙ САМ ЗА СЕБЯ', 'Команд нет. Побеждает игрок, у которого в конце больше всего своих пикселей на поле.']
   };
   const hex = h => { const n = parseInt(h.slice(1), 16); return (255 << 24) | ((n & 255) << 16) | (n & 0xff00) | (n >> 16); }; // ABGR
   const PAL32 = PALETTE.map(hex), TEAM32 = TEAMS.map(t => hex(t.c));
@@ -31,7 +30,8 @@
     const octx = off.getContext('2d'), img = octx.createImageData(N, N), buf = new Uint32Array(img.data.buffer);
     let ev = null, team = null, seq = 0, placed = 0, nextAt = 0, cd = 30, sel = null, color = 4, teamView = false;
     let scores = null, players = [0, 0], finished = false, result = null, panelTab = null, busy = false, dirty = true;
-    let theme = 'dark'; try { theme = localStorage.getItem('pb-theme') || 'dark'; } catch (e) { /* без памяти */ }
+    const solo = () => ((ev && ev.config) || {}).mode === 'solo';
+    let owned = 0, theme = 'light'; try { theme = localStorage.getItem('pb-theme') || 'light'; } catch (e) { /* без памяти */ }
     document.body.dataset.pbtheme = theme;
 
     root.innerHTML = `
@@ -61,7 +61,7 @@
     function zoomAt(f, px, py) { const ns = Math.min(64, Math.max(minSc, sc * f)); tx = px - (px - tx) * ns / sc; ty = py - (py - ty) * ns / sc; sc = ns; clamp(); dirty = true; }
     function draw() {
       dirty = false; const dark = document.body.dataset.pbtheme !== 'light';
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = dark ? '#070a18' : '#dfe4f3'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = dark ? '#070a18' : '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * tx, dpr * ty); ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = dark ? '#10152e' : '#ffffff'; ctx.fillRect(0, 0, N, N); ctx.drawImage(off, 0, 0);
       const mode = ev && ev.config && ev.config.mode;
@@ -77,7 +77,7 @@
         ctx.stroke(); ctx.globalAlpha = 1;
       }
       if (sc >= 8) { ctx.globalAlpha = .18; ctx.strokeStyle = dark ? '#ffffff' : '#000000'; ctx.lineWidth = 1 / sc; ctx.beginPath(); for (let x = x0; x <= x1; x++) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); } for (let y = y0; y <= y1; y++) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); } ctx.stroke(); ctx.globalAlpha = 1; }
-      ctx.strokeStyle = dark ? '#6d7dff' : '#4f6df5'; ctx.lineWidth = 2 / sc; ctx.strokeRect(0, 0, N, N);
+      ctx.strokeStyle = dark ? '#6d7dff' : '#b9c0d6'; ctx.lineWidth = 2 / sc; ctx.strokeRect(0, 0, N, N);
       if (sel) { ctx.fillStyle = PALETTE[color]; ctx.globalAlpha = .85; ctx.fillRect(sel.x, sel.y, 1, 1); ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.5 / sc, .12); ctx.strokeRect(sel.x, sel.y, 1, 1); ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(.7 / sc, .05); ctx.strokeRect(sel.x + .08, sel.y + .08, .84, .84); }
     }
     (function loop() { if (dirty) draw(); requestAnimationFrame(loop); })();
@@ -108,17 +108,24 @@
       if (!finished && t >= b) poll();
     }
     function renderScore() {
-      if (!scores) return; const s = scores.s, tot = (+s[0]) + (+s[1]), p0 = tot ? Math.round(+s[0] / tot * 100) : 50, mode = scores.mode;
-      const unit = mode === 'territory_rush' ? 'зон' : mode === 'pixel_domination' ? 'очков' : 'пикселей';
+      if (!scores) return;
+      if (solo()) {
+        const top = scores.top || [], me = F.sessionId();
+        $('#pb-score').className = 'pb-score solo';
+        $('#pb-score').innerHTML = `<div class="you">Ваших пикселей: <b>${owned}</b></div><div class="tops">${top.length ? top.map((u, i) => `<span class="${u.id === me ? 'me' : ''}">${i + 1}. ${esc(u.name || 'Игрок')} <b>${u.owned}</b></span>`).join('') : '<span class="muted">Пока никто не закрасил ни одного пикселя</span>'}</div>`;
+        return;
+      }
+      $('#pb-score').className = 'pb-score';
+      const s = scores.s, tot = (+s[0]) + (+s[1]), p0 = tot ? Math.round(+s[0] / tot * 100) : 50;
       $('#pb-score').innerHTML = `<div class="sb"><span class="tn" style="color:${TEAMS[0].c}">${TEAMS[0].name}${team === 0 ? ' · вы' : ''}</span><b>${s[0]}</b></div>
 <div class="bar"><i style="width:${p0}%;background:${TEAMS[0].c}"></i><i style="width:${100 - p0}%;background:${TEAMS[1].c}"></i></div>
-<div class="sb r"><b>${s[1]}</b><span class="tn" style="color:${TEAMS[1].c}">${team === 1 ? 'вы · ' : ''}${TEAMS[1].name}</span></div><div class="un">${unit} · игроков ${players[0]} : ${players[1]}</div>`;
+<div class="sb r"><b>${s[1]}</b><span class="tn" style="color:${TEAMS[1].c}">${team === 1 ? 'вы · ' : ''}${TEAMS[1].name}</span></div><div class="un">пикселей · игроков ${players[0]} : ${players[1]}</div>`;
     }
     function setEvent(e) {
       ev = e; cd = Math.max(0, +((e.config || {}).cooldown ?? 30)); const m = MODES[(e.config || {}).mode] || MODES.team_war;
-      $('#pb-name').textContent = e.title || 'Pixel Battle'; $('#pb-mode').textContent = m[0]; $('#pb-mode').title = m[1];
+      $('#pb-name').textContent = e.title || 'Pixel Battle'; $('#pb-mode').textContent = m[0]; $('#pb-mode').title = m[1]; $('#z-view').hidden = (e.config || {}).mode === 'solo';
     }
-    function mine() { return team === null ? '' : `<div class="mine" style="border-color:${TEAMS[team].c}"><b style="color:${TEAMS[team].c}">Вы в команде «${TEAMS[team].name}»</b><span>Поставлено пикселей: ${placed}</span></div>`; }
+    function mine() { if (solo()) return `<div class="mine"><b>Вы играете сами за себя</b><span>Ваших пикселей на поле: ${owned}</span><span>Поставлено всего: ${placed}</span></div>`; return team === null ? '' : `<div class="mine" style="border-color:${TEAMS[team].c}"><b style="color:${TEAMS[team].c}">Вы в команде «${TEAMS[team].name}»</b><span>Поставлено пикселей: ${placed}</span></div>`; }
     async function board() {
       const box = $('#pb-board'); if (!box) return;
       const r = await sb.rpc('pb_leaderboard', { p_ev: evId }); if (r.error || !$('#pb-board')) return;
@@ -126,16 +133,20 @@
     }
     function panel(tab) {
       const el = $('#pb-panel'); panelTab = tab; if (!tab) { el.hidden = true; return; }
-      const info = MODES[(ev.config || {}).mode] || MODES.team_war;
-      el.hidden = false; el.innerHTML = `<div class="ph"><b>${tab === 'rating' ? 'Рейтинг раунда' : 'Команды'}</b><button class="pb-ib" data-x="close" aria-label="Закрыть">✕</button></div>
-<div class="tabs2"><button class="${tab === 'teams' ? 'on' : ''}" data-tab="teams">Команды</button><button class="${tab === 'rating' ? 'on' : ''}" data-tab="rating">Рейтинг</button></div>
-${tab === 'teams' ? `${mine()}<div class="mode"><b>${info[0]}</b><p>${info[1]}</p></div><div class="tcards">${[0, 1].map(i => `<div class="tc" style="border-color:${TEAMS[i].c}"><b style="color:${TEAMS[i].c}">${TEAMS[i].name}</b><span>Игроков: ${players[i]}</span><span>${scores ? 'Счёт: ' + scores.s[i] : ''}</span><span>${scores ? 'Пикселей: ' + scores.pixels[i] : ''}</span></div>`).join('')}</div>
+      const info = MODES[(ev.config || {}).mode] || MODES.team_war; const hdr = tab === 'rating' ? 'Рейтинг раунда' : solo() ? 'Игра' : 'Команды';
+      el.hidden = false; el.innerHTML = `<div class="ph"><b>${hdr}</b><button class="pb-ib" data-x="close" aria-label="Закрыть">✕</button></div>
+<div class="tabs2"><button class="${tab === 'teams' ? 'on' : ''}" data-tab="teams">${solo() ? 'Игра' : 'Команды'}</button><button class="${tab === 'rating' ? 'on' : ''}" data-tab="rating">Рейтинг</button></div>
+${tab === 'teams' ? `${mine()}<div class="mode"><b>${info[0]}</b><p>${info[1]}</p></div>${solo() ? '' : `<div class="tcards">${[0, 1].map(i => `<div class="tc" style="border-color:${TEAMS[i].c}"><b style="color:${TEAMS[i].c}">${TEAMS[i].name}</b><span>Игроков: ${players[i]}</span><span>${scores ? 'Счёт: ' + scores.s[i] : ''}</span><span>${scores ? 'Пикселей: ' + scores.pixels[i] : ''}</span></div>`).join('')}</div>`}
 <p class="muted small">Занято ${scores ? ((scores.pixels[0] + scores.pixels[1]) / (N * N) * 100).toFixed(2) : 0}% поля. Кулдаун: ${cd} с.</p>` : '<div id="pb-board" class="board">Загрузка…</div>'}`;
       if (tab === 'rating') board();
     }
     function over() {
       const o = $('#pb-over'); if (!result && !finished) { o.hidden = true; return; }
       const r = result || {}, w = r.winner, s = r.s || (scores && scores.s) || [0, 0];
+      if (solo()) { const top = (scores && scores.top) || [], won = r.winner_user === F.sessionId();
+        o.hidden = false; o.innerHTML = `<div class="box"><div class="tag">Раунд закончен</div><h2>${r.winner_name ? 'Победил ' + esc(r.winner_name) : 'Ничья!'}</h2>${r.winner_owned ? `<div class="res"><span>${r.winner_owned} пикселей на поле</span></div>` : ''}
+<p>${won ? 'Это вы! 🎉' : `У вас на поле пикселей: ${owned}.`}</p>${top.length ? `<div class="tops2">${top.map((u, i) => `<div>${i + 1}. ${esc(u.name || 'Игрок')} — <b>${u.owned}</b></div>`).join('')}</div>` : ''}<div id="pb-next" class="muted small"></div>
+<div class="btns"><a class="btn" href="events.html">К ивентам</a><button class="btn btn-ghost" data-x="stay">Посмотреть поле</button></div></div>`; nextRound(); return; }
       o.hidden = false; o.innerHTML = `<div class="box"><div class="tag">Раунд закончен</div><h2 style="color:${w == null ? 'inherit' : TEAMS[w].c}">${w == null ? 'Ничья!' : 'Победа — «' + TEAMS[w].name + '»'}</h2>
 <div class="res"><span style="color:${TEAMS[0].c}">${TEAMS[0].name}: <b>${s[0]}</b></span><span style="color:${TEAMS[1].c}">${TEAMS[1].name}: <b>${s[1]}</b></span></div>
 ${team !== null ? `<p>${w === team ? 'Ваша команда победила 🎉' : w == null ? 'Силы равны.' : 'В этот раз не повезло.'} Вы поставили ${placed} пикс.</p>` : ''}<div id="pb-next" class="muted small"></div>
@@ -149,7 +160,7 @@ ${team !== null ? `<p>${w === team ? 'Ваша команда победила �
 
     // ---------- сеть ----------
     function take(d) {
-      if (d.scores) scores = d.scores; if (d.players) players = d.players; if (typeof d.placed === 'number') placed = d.placed;
+      if (d.scores) scores = d.scores; if (d.players) players = d.players; if (typeof d.placed === 'number') placed = d.placed; if (typeof d.owned === 'number') owned = d.owned;
       if (d.pixels) applyPacked(d.pixels); if (typeof d.seq === 'number') seq = Math.max(seq, d.seq);
       if (d.event) setEvent(d.event);
       if (d.ends_at && ev && d.ends_at !== ev.ends_at) ev.ends_at = d.ends_at;
@@ -164,7 +175,7 @@ ${team !== null ? `<p>${w === team ? 'Ваша команда победила �
     }
     async function place() {
       if (!sel || busy || team === null || E.now() < nextAt) return; busy = true;
-      const i = sel.y * N + sel.x, was = [col[i], tm[i]], pt = { x: sel.x, y: sel.y, c: color }; setPixel(i, color, team); // сразу рисуем у себя
+      const i = sel.y * N + sel.x, was = [col[i], tm[i]], wasMine = false, pt = { x: sel.x, y: sel.y, c: color }; setPixel(i, color, team); // сразу рисуем у себя
       nextAt = E.now() + cd * 1000; tick();
       try {
         const r = await sb.rpc('pb_place', { p_ev: evId, p_x: pt.x, p_y: pt.y, p_color: pt.c });
@@ -215,13 +226,13 @@ ${team !== null ? `<p>${w === team ? 'Ваша команда победила �
     let st;
     try { const r = await sb.rpc('pb_state', { p_ev: evId }); if (r.error) throw new Error(r.error.message); st = r.data; }
     catch (e) { F.fatal('Не удалось открыть ивент: ' + (e.message || e) + '. Выполните в Supabase файл migration_004_pixelbattle.sql.', true); return; }
-    E.offset = Date.parse(st.now) - Date.now(); setEvent(st.event); team = st.team; placed = st.placed;
+    E.offset = Date.parse(st.now) - Date.now(); setEvent(st.event); team = st.team; placed = st.placed; owned = st.owned || 0;
     if (st.last_at) nextAt = Date.parse(st.last_at) + cd * 1000;
     applyPacked(st.pixels); seq = st.seq; scores = st.scores; players = st.players; renderScore();
     finished = !!st.event.finalized; result = st.event.result || null; if (finished) over();
     const t0 = E.now();
     if (team === null && !finished && t0 < Date.parse(st.event.ends_at)) {
-      try { const j = await sb.rpc('pb_join', { p_ev: evId }); if (j.error) throw new Error(j.error.message); team = j.data.team; F.toast('Вы в команде «' + TEAMS[team].name + '»'); } catch (e) { F.toast(String(e.message || e)); }
+      try { const j = await sb.rpc('pb_join', { p_ev: evId }); if (j.error) throw new Error(j.error.message); team = j.data.team; if (!solo()) F.toast('Вы в команде «' + TEAMS[team].name + '»'); } catch (e) { F.toast(String(e.message || e)); }
     }
     renderScore(); tick(); setInterval(tick, 500); setInterval(poll, 2000);
   });

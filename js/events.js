@@ -11,11 +11,11 @@
     const when = ms => new Date(ms).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     const portal = `<svg class="portal-art" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><ellipse cx="60" cy="60" rx="34" ry="52" fill="none" stroke="currentColor" stroke-width="5" opacity=".95"/><ellipse class="pr2" cx="60" cy="60" rx="21" ry="36" fill="none" stroke="currentColor" stroke-width="4" opacity=".75"/><ellipse class="pr3" cx="60" cy="60" rx="9" ry="19" fill="currentColor" opacity=".55"/><path d="M14 22l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM103 84l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" fill="currentColor"/></svg>`;
 
-    const RULES = { team_war: 'Побеждает команда, у которой в конце больше пикселей.', territory_rush: 'Поле — 400 зон. Зона достаётся команде с большим числом пикселей в ней. Побеждает команда с большим числом зон.', pixel_domination: 'Центр поля (200×200) даёт втрое больше очков. Захватите середину!' };
+    const RULES = { team_war: 'Две команды, игроки распределяются поровну. Побеждает команда, у которой в конце больше пикселей.', solo: 'Команд нет — каждый сам за себя. Побеждает игрок, у которого в конце больше всего своих пикселей на поле.' };
     function playCard(e, live) {
       const cfg = e.config || {}, mode = F.PIXEL_KINDS[cfg.mode] || 'Pixel Battle';
-      return `<section class="card card-pad pb-card"><div class="pb-head"><span class="pb-chip">${mode}</span><span class="muted small">Поле 1000×1000 · кулдаун ${cfg.cooldown ?? 30} с · 2 команды</span></div>
-<p>${RULES[cfg.mode] || RULES.team_war}</p><p class="muted small">Команду выбирает система: игроки распределяются поровну. Пиксели появляются у всех сразу.</p>
+      return `<section class="card card-pad pb-card"><div class="pb-head"><span class="pb-chip">${mode}</span><span class="muted small">Поле 1000×1000 · кулдаун ${cfg.cooldown ?? 30} с · ${cfg.mode === 'solo' ? 'без команд' : '2 команды'}</span></div>
+<p>${RULES[cfg.mode] || RULES.team_war}</p><p class="muted small">${cfg.mode === 'solo' ? '' : 'Команду выбирает система. '}Пиксели появляются у всех сразу.</p>
 ${live ? `<a class="btn pb-play" href="battle.html?e=${e.id}">▶ ИГРАТЬ</a>` : '<button class="btn" disabled>Откроется со стартом</button>'}</section>`;
     }
     let hubTab = 'rating';
@@ -29,7 +29,7 @@ ${live ? `<a class="btn pb-play" href="battle.html?e=${e.id}">▶ ИГРАТЬ</
       const tn = ['Огонь', 'Лёд'];
       hub.innerHTML = `<section class="card card-pad" style="margin-top:14px"><div class="tabs" style="margin-bottom:10px"><button class="tab${hubTab === 'rating' ? ' active' : ''}" data-h="rating">Рейтинг</button><button class="tab${hubTab === 'hist' ? ' active' : ''}" data-h="hist">История</button></div>
 ${hubTab === 'rating' ? (mine ? `<p class="small">Ваш результат: <b>${mine.placed}</b> пикс. · побед команды: <b>${mine.wins}</b> · раундов: <b>${mine.battles}</b></p>` : '') + (board.slice(0, 15).map((u, i) => `<div class="rowitem"><b style="width:26px">${i + 1}</b><span class="grow">${F.esc((u.first_name + ' ' + u.last_name).trim() || 'Игрок')}${u.user_id === meId ? ' (вы)' : ''}</span><b>${u.placed}</b></div>`).join('') || '<div class="muted">Пока пусто</div>')
-: hist.map(e => { const r = e.result || {}, w = r.winner; return `<div class="rowitem"><span class="grow"><b>${F.esc(e.title)}</b><div class="muted small">${when(Date.parse(e.ends_at))} · ${F.PIXEL_KINDS[(e.config || {}).mode] || ''}</div></span><span>${w == null ? 'Ничья' : 'Победил «' + tn[w] + '»'} <span class="muted small">${(r.s || [0, 0]).join(' : ')}</span></span></div>`; }).join('') || '<div class="muted">Завершённых раундов нет</div>'}</section>`;
+: hist.map(e => { const r = e.result || {}, w = r.winner; return `<div class="rowitem"><span class="grow"><b>${F.esc(e.title)}</b><div class="muted small">${when(Date.parse(e.ends_at))} · ${F.PIXEL_KINDS[(e.config || {}).mode] || ''}</div></span><span>${r.winner_name ? 'Победил ' + F.esc(r.winner_name) : w == null ? 'Ничья' : 'Победил «' + tn[w] + '»'} <span class="muted small">${(e.config || {}).mode === 'solo' ? (r.winner_owned || '') : (r.s || [0, 0]).join(' : ')}</span></span></div>`; }).join('') || '<div class="muted">Завершённых раундов нет</div>'}</section>`;
       hub.onclick = ev => { const b = ev.target.closest('[data-h]'); if (b) { hubTab = b.dataset.h; drawHub(); } };
     }
     function draw() {

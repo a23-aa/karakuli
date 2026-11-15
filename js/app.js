@@ -407,7 +407,7 @@
       return d ? d + ' д ' + z(h) + ' ч' : h ? h + ':' + z(m) + ':' + z(sec) : z(m) + ':' + z(sec);
     }
   };
-  F.PIXEL_KINDS = { team_war: 'TEAM WAR', territory_rush: 'TERRITORY RUSH', pixel_domination: 'PIXEL DOMINATION' };
+  F.PIXEL_KINDS = { team_war: 'С командами', solo: 'Каждый сам за себя', territory_rush: 'С командами · зоны', pixel_domination: 'С командами · центр' };
   /** Кнопка «Ивенты» везде показывает: идёт ивент или сколько до ближайшего. */
   F.eventPulse = async () => {
     const pills = F.$$('[data-evpill]'); if (!pills.length) return;

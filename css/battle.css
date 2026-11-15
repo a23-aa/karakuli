@@ -53,3 +53,14 @@ body.pb[data-pbtheme="light"]{--b-bg:#e8ecf8;--b-panel:#ffffff;--b-line:#cfd6ee;
 .pb-over .btns{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
 .pb .btn-ghost{color:var(--b-ink);border-color:var(--b-line)}
 @media (max-width:560px){.pb-pal{grid-template-columns:repeat(8,1fr)}.pb-pal .sw{min-height:34px}.pb-title b{font-size:14px}.pb-score .sb b{font-size:19px}}
+
+/* простой светлый вид по умолчанию: белый фон, без свечения */
+body.pb[data-pbtheme="light"]{--b-bg:#ffffff;--b-panel:#ffffff;--b-line:#e1e5f0;--b-glow:none}
+body.pb[data-pbtheme="light"] .pb-clock{box-shadow:none}
+body.pb[data-pbtheme="light"] .pb-score .bar{box-shadow:none}
+.pb-score.solo{display:block;padding:8px 14px}
+.pb-score.solo .you{font-size:14px;color:var(--b-mut)}.pb-score.solo .you b{font-size:20px;color:var(--b-ink)}
+.pb-score.solo .tops{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:2px}
+.pb-score.solo .tops .me{font-weight:800;color:var(--b-neon)}
+.tops2{text-align:left;margin:10px auto;max-width:280px;font-size:14px}
+.pb-zoom button[hidden]{display:none}
