@@ -421,3 +421,34 @@
 .auth-tabs .tab{flex:1;border:0;background:transparent;padding:8px 10px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted);transition:background .15s,color .15s}
 .auth-tabs .tab.active{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .code-input{font-size:24px;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ===== анимации при наведении ===== */
+.btn,.icon-btn,.soc-btn,.tab,.chip,.act,.nav-item,.rowitem,.card,.avatar,.ava,.logo,.link-btn,.sw-btn{transition:transform .18s ease,box-shadow .2s ease,background-color .18s ease,color .18s ease,border-color .18s ease,filter .18s ease}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 38%,transparent);filter:brightness(1.05)}
+.btn:active:not(:disabled){transform:translateY(0) scale(.97);box-shadow:none}
+.btn-ghost:hover:not(:disabled){box-shadow:0 6px 16px rgba(0,0,0,.1)}
+.icon-btn:hover{transform:scale(1.14) rotate(-4deg);background:var(--soft2)}
+.icon-btn:active{transform:scale(.92)}
+.soc-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);border-color:var(--accent)}
+.tab:hover,.chip:hover{transform:translateY(-1px)}
+.nav-item{position:relative}
+.nav-item:hover{transform:translateX(5px);background:var(--soft)}
+.nav-item svg{transition:transform .22s ease}
+.nav-item:hover svg{transform:scale(1.2) rotate(-6deg);color:var(--accent)}
+.rowitem:hover{background:var(--soft);transform:translateX(3px)}
+.card:hover{box-shadow:0 12px 32px rgba(0,0,0,.12);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.post.card:hover{transform:translateY(-2px)}
+.ava:hover,.ava-wrap:hover .ava{transform:scale(1.08);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}
+.act:hover{transform:translateY(-2px);background:var(--soft2)}
+.act:hover svg{animation:wiggle .5s ease}
+.act[data-act=like]:hover{color:var(--danger)}
+.logo:hover .logo-t{letter-spacing:.2px}
+.logo .logo-t{transition:letter-spacing .25s ease}
+.link-btn:hover,.post a:hover,.post-text a:hover{text-decoration:none;color:var(--accent-d)}
+.input:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.input:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.msg:hover{filter:brightness(1.03)}
+.ntoast:hover{box-shadow:0 14px 34px rgba(0,0,0,.28)}
+.to-top:hover{transform:translateY(-3px) scale(1.08)}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg) scale(1.15)}60%{transform:rotate(10deg) scale(1.1)}}
+@media (hover:none){.btn:hover,.card:hover,.nav-item:hover,.rowitem:hover{transform:none;box-shadow:none}}

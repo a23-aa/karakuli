@@ -5,11 +5,11 @@
 
    providers — какие кнопки входа показывать. Каждый способ нужно отдельно включить в
    Supabase → Authentication → Sign In / Providers (инструкция в README). Доступны:
-   'google', 'github', 'discord', 'apple'. */
+   'google', 'github', 'apple'. */
 window.KARAKULI_CONFIG = {
   supabaseUrl: 'https://dwqaopsvburojrjxrdls.supabase.co',
   supabaseKey: 'sb_publishable_vh82N5s8_IjQBlqcZI7kDA_HXtwroyu',
-  providers: ['google', 'github', 'discord'],
+  providers: ['google', 'github'],
   // публичный VAPID-ключ для push-уведомлений (приватная часть хранится только в базе, см. README)
   vapidPublicKey: 'BETp-sabCJLZVsv8suGTfWoK3yaFrzSpJlFc02KRDWdsXCr_zxUbS-rVqS_bOraSi7vnXoPGluhFziP6hbf5skE'
 };

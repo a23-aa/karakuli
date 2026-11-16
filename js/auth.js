@@ -4,43 +4,6 @@
   const page = document.body.dataset.page;
   const CFG = window.KARAKULI_CONFIG || {};
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  const PHONE_RE = /^\+\d{10,15}$/;
-  const normPhone = v => { let p = String(v || '').replace(/[\s\-()]/g, ''); if (/^8\d{10}$/.test(p)) p = '+7' + p.slice(1); else if (/^7\d{10}$/.test(p)) p = '+' + p; return p; };
-  /** переключатель «Почта / Телефон» на формах входа и регистрации */
-  function modeTabs(form) {
-    let mode = 'email';
-    const set = m => { mode = m; F.$$('.auth-tabs .tab', form).forEach(t => t.classList.toggle('active', t.dataset.m === m)); F.$('#row-email', form).hidden = m !== 'email'; F.$('#row-phone', form).hidden = m !== 'phone'; };
-    F.$$('.auth-tabs .tab', form).forEach(t => t.addEventListener('click', () => set(t.dataset.m)));
-    return () => mode;
-  }
-  /** окно ввода кода из письма / SMS */
-  function askCode(target, kind) {
-    const where = kind === 'sms' ? target.phone : target.email;
-    let wait = 0, tm = null;
-    F.modal({
-      title: 'Введите код',
-      body: `<p class="muted small" style="margin-top:0">${kind === 'sms' ? 'Мы отправили код в SMS на' : 'Мы отправили код на почту'} <b>${F.esc(where)}</b>.</p>
-<div class="form-row"><label for="c-code">Код</label><input class="input code-input" id="c-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="000000"></div>
-<div class="form-msg err" id="c-msg" role="alert"></div><button class="link-btn small" id="c-again" type="button">Отправить код ещё раз</button>`,
-      actions: [{ label: 'Подтвердить', onClick: async m => {
-        const code = F.$('#c-code', m.body).value.replace(/\D/g, ''), r = F.$('#c-msg', m.body);
-        if (code.length < 6) { r.textContent = 'Введите код целиком'; return; }
-        const res = await F.sb.auth.verifyOtp(Object.assign({ token: code, type: kind === 'sms' ? 'sms' : 'signup' }, kind === 'sms' ? { phone: target.phone } : { email: target.email }));
-        if (res.error) { r.textContent = /expired|invalid/i.test(res.error.message) ? 'Неверный код или он устарел' : authErr(res.error.message); return; }
-        location.href = 'profile.html?welcome=1';
-      } }],
-      onOpen: m => {
-        const a = F.$('#c-again', m.body); F.$('#c-code', m.body).focus();
-        a.onclick = async () => {
-          if (wait > 0) return;
-          const res = await F.sb.auth.resend(Object.assign({ type: kind === 'sms' ? 'sms' : 'signup' }, kind === 'sms' ? { phone: target.phone } : { email: target.email }));
-          if (res.error) { F.$('#c-msg', m.body).textContent = authErr(res.error.message); return; }
-          F.toast('Код отправлен снова'); wait = 60; a.disabled = true; clearInterval(tm);
-          tm = setInterval(() => { wait--; a.textContent = wait > 0 ? 'Отправить ещё раз через ' + wait + ' с' : 'Отправить код ещё раз'; if (wait <= 0) { a.disabled = false; clearInterval(tm); } }, 1000);
-        };
-      }
-    });
-  }
   const here = file => new URL(file, location.href).href;
 
   const authErr = m => {
@@ -52,8 +15,6 @@
     if (/rate limit|For security purposes|too many/i.test(m)) return 'Слишком много попыток. Подождите минуту и повторите.';
     if (/Unsupported provider|provider is not enabled/i.test(m)) return 'Этот способ входа ещё не включён в настройках Supabase.';
     if (/Signups not allowed|signup.*disabled/i.test(m)) return 'Регистрация сейчас отключена.';
-    if (/phone.*(provider|disabled|not enabled)|sms.*(provider|send)|Unable to get SMS/i.test(m)) return 'Вход по номеру телефона ещё не подключён: нужно включить Phone и SMS-провайдера в Supabase.';
-    if (/Token has expired|otp_expired/i.test(m)) return 'Код устарел. Запросите новый.';
     return F.niceError(m);
   };
 
@@ -61,7 +22,6 @@
   const PROV = {
     google: { name: 'Google', icon: '<svg viewBox="0 0 24 24" width="22" height="22"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>' },
     github: { name: 'GitHub', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.68.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>' },
-    discord: { name: 'Discord', icon: '<svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="6" fill="#5865F2"/><path d="M7 8.5c1.4-.7 3-.9 5-.9s3.6.2 5 .9l1 8c-1.2.9-2.4 1.4-3.6 1.6l-.7-1.3c.5-.2 1-.4 1.4-.7-1.2.5-2.4.8-3.1.8s-1.9-.3-3.1-.8c.4.3.9.5 1.4.7l-.7 1.3C8.4 17.9 7.2 17.4 6 16.5z" fill="#fff"/><circle cx="9.8" cy="13" r="1.2" fill="#5865F2"/><circle cx="14.2" cy="13" r="1.2" fill="#5865F2"/></svg>' },
     apple: { name: 'Apple', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8C6.9 7.4 5.5 8.3 4.7 9.7c-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.3 2.9 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.8zM14.2 5.8c.6-.8 1.1-1.8.9-2.8-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3z"/></svg>' }
   };
 
@@ -82,15 +42,15 @@
   if (page === 'login') {
     F.publicPage(ctx => {
       const form = F.$('#login-form'), msg = F.$('#msg'), btn = F.$('button[type=submit]', form);
-      mountSocial(); const getMode = modeTabs(form);
+      mountSocial();
       if (ctx.recovery) newPasswordModal();
       form.addEventListener('submit', async e => {
         e.preventDefault(); msg.textContent = '';
-        const email = form.email.value.trim(), pass = form.pass.value, byPhone = getMode() === 'phone', phone = normPhone(form.phone.value);
-        if (byPhone ? !PHONE_RE.test(phone) : !EMAIL_RE.test(email)) { msg.textContent = byPhone ? 'Введите номер в формате +7 900 000-00-00' : 'Введите корректный адрес электронной почты'; return; }
+        const email = form.email.value.trim(), pass = form.pass.value;
+        if (!EMAIL_RE.test(email)) { msg.textContent = 'Введите корректный адрес электронной почты'; return; }
         if (!pass) { msg.textContent = 'Введите пароль'; return; }
         btn.disabled = true;
-        const r = await F.sb.auth.signInWithPassword(byPhone ? { phone, password: pass } : { email, password: pass });
+        const r = await F.sb.auth.signInWithPassword({ email, password: pass });
         if (r.error) { btn.disabled = false; msg.textContent = authErr(r.error.message); return; }
         location.href = 'index.html';
       });
@@ -134,27 +94,27 @@
     F.publicPage(() => {
       mountSocial();
       const form = F.$('#reg-form'), msg = F.$('#msg'), btn = F.$('button[type=submit]', form);
-      const getMode = modeTabs(form);
       const un = form.uname, um = F.$('#umsg'); let utimer = null, uok = false;
       un.addEventListener('input', () => { uok = false; clearTimeout(utimer); const v = un.value.trim(); if (!v) { um.textContent = ''; return; }
         utimer = setTimeout(async () => { const r = await F.checkUsername(v); uok = r.ok; um.className = 'form-msg ' + (r.ok ? 'ok' : 'err'); um.textContent = r.text; }, 350); });
       form.addEventListener('submit', async e => {
         e.preventDefault(); msg.className = 'form-msg err'; msg.textContent = '';
-        const byPhone = getMode() === 'phone', phone = normPhone(form.phone.value), email = form.email.value.trim(), p1 = form.pass.value, p2 = form.pass2.value;
+        const email = form.email.value.trim(), p1 = form.pass.value, p2 = form.pass2.value;
         const uname = un.value.trim().toLowerCase(), uprob = F.usernameProblem(uname);
-        const err = uprob ? 'Никнейм: ' + uprob.toLowerCase() : byPhone && !PHONE_RE.test(phone) ? 'Введите номер в формате +7 900 000-00-00' : !byPhone && !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
+        const err = uprob ? 'Никнейм: ' + uprob.toLowerCase() : !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
           : p1.length < 6 ? 'Пароль должен быть не короче 6 символов' : p1 !== p2 ? 'Пароли не совпадают' : '';
         if (err) { msg.textContent = err; return; }
         btn.disabled = true;
         const chk = await F.checkUsername(uname);
         if (!chk.ok) { btn.disabled = false; um.className = 'form-msg err'; um.textContent = chk.text; msg.textContent = 'Выберите другой никнейм'; return; }
         const meta = { first_name: uname, last_name: '', username: uname };
-        const r = await F.sb.auth.signUp(byPhone ? { phone, password: p1, options: { data: meta } } : { email, password: p1, options: { data: meta, emailRedirectTo: here('index.html') } });
+        const r = await F.sb.auth.signUp({ email, password: p1, options: { data: meta, emailRedirectTo: here('index.html') } });
         btn.disabled = false;
         if (r.error) { msg.textContent = authErr(r.error.message); return; }
-        if (r.data.user && r.data.user.identities && r.data.user.identities.length === 0) { msg.textContent = byPhone ? 'Этот номер уже зарегистрирован' : 'Эта почта уже зарегистрирована'; return; }
+        if (r.data.user && r.data.user.identities && r.data.user.identities.length === 0) { msg.textContent = 'Эта почта уже зарегистрирована'; return; }
         if (r.data.session) { location.href = 'profile.html?welcome=1'; return; }
-        askCode({ email, phone }, byPhone ? 'sms' : 'email');
+        msg.className = 'form-msg ok'; msg.textContent = 'Почти готово! Мы отправили письмо на ' + email + '. Перейдите по ссылке в нём, затем войдите.';
+        form.reset();
       });
     });
   }
