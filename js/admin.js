@@ -1,4 +1,4 @@
-/* Каракули — админ-панель: статистика, пользователи и галочки, записи, комментарии, сообщества. */
+/* CrownNet — админ-панель: статистика, пользователи и галочки, записи, комментарии, сообщества. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'admin') return;
@@ -6,7 +6,7 @@
     const me = F.me();
     if (!me.isAdmin) { c.innerHTML = `<div class="card empty">${F.ic('shield', 40)}<div><b>Нет доступа</b></div><p class="muted small">Эта страница только для администратора сайта.</p><p><a class="btn" href="index.html">На главную</a></p></div>`; return; }
     const sb = F.sb, esc = F.esc;
-    const TABS = [['stats', 'Статистика'], ['users', 'Пользователи'], ['posts', 'Записи'], ['comments', 'Комментарии'], ['communities', 'Сообщества'], ['events', 'Ивенты']];
+    const TABS = [['stats', 'Статистика'], ['users', 'Пользователи'], ['posts', 'Записи'], ['comments', 'Комментарии'], ['communities', 'Сообщества'], ['events', 'Ивенты'], ['support', 'Поддержка'], ['badges', 'Заявки на галочку']];
     let tab = new URLSearchParams(location.search).get('tab') || 'stats', timer = null, q = '';
     c.innerHTML = `<h1 class="page-title">Админ-панель</h1><div class="adm-tabs" id="at"></div><div id="ab"></div>`;
     const tabs = F.$('#at', c), box = F.$('#ab', c);
@@ -42,16 +42,16 @@
     /* ---------- пользователи ---------- */
     function users() {
       const all = F.allUsers().slice().sort((a, b) => b.created - a.created);
-      box.innerHTML = search('Поиск по имени или @юзернейму') + `<section class="card card-pad" id="ul"></section>`;
+      box.innerHTML = search('Поиск по имени или @никнейму') + `<section class="card card-pad" id="ul"></section>`;
       const render = () => {
         const list = all.filter(u => !q || F.fullName(u).toLowerCase().includes(q) || (u.username || '').includes(q.replace(/^@/, '')));
         F.$('#ul', box).innerHTML = `<div class="muted small" style="margin-bottom:6px">Найдено: ${list.length} из ${all.length}</div>` + (list.slice(0, 100).map(u => {
           const prot = u.isAdmin || u.id === me.id;
-          const tags = (u.isAdmin ? '<span class="tag gold">админ</span>' : '') + (u.banned ? '<span class="tag red">бан</span>' : '') + (!u.username ? '<span class="tag">без юзернейма</span>' : '');
+          const tags = (u.isAdmin ? '<span class="tag gold">админ</span>' : '') + (u.banned ? '<span class="tag red">бан</span>' : '') + (!u.username ? '<span class="tag">без никнейма</span>' : '');
           const sel = u.badge === 'owner' ? '<span class="muted small">Галочка владельца</span>' : `<select class="input" data-bd="${u.id}" style="padding:4px 8px;width:auto"><option value="">Без галочки</option><option value="verified"${u.badge === 'verified' ? ' selected' : ''}>Синяя — подтверждён</option><option value="blogger"${u.badge === 'blogger' ? ' selected' : ''}>Серая — блогер</option></select>`;
           return `<div class="adm-row" data-u="${u.id}"><a href="profile.html?id=${u.id}"><img class="ava ava-m" src="${F.avatar(u)}" alt=""></a>
 <div class="grow"><div>${who(u)}${tags}${F.isOnline(u) ? ' <span class="on-text">online</span>' : ''}</div><div class="muted small">зарегистрирован ${F.fmtDate(u.created)}</div>
-<div class="adm-actions" style="margin-top:6px">${sel}${prot ? '' : `<button class="btn btn-ghost btn-sm" data-a="ban">${u.banned ? 'Разблокировать' : 'Заблокировать'}</button>${u.username ? '<button class="btn btn-ghost btn-sm" data-a="clr">Сбросить юзернейм</button>' : ''}<button class="btn btn-danger btn-sm" data-a="del">Удалить</button>`}</div></div></div>`;
+<div class="adm-actions" style="margin-top:6px">${sel}${prot ? '' : `<button class="btn btn-ghost btn-sm" data-a="ban">${u.banned ? 'Разблокировать' : 'Заблокировать'}</button>${u.username ? '<button class="btn btn-ghost btn-sm" data-a="clr">Сбросить никнейм</button>' : ''}<button class="btn btn-danger btn-sm" data-a="del">Удалить</button>`}</div></div></div>`;
         }).join('') || '<div class="muted">Никого не нашли</div>') + (list.length > 100 ? '<div class="muted small">Показаны первые 100. Уточните поиск.</div>' : '');
       };
       render(); bindSearch(render);
@@ -62,7 +62,7 @@
           if (u.banned) { act(sb.rpc('admin_set_ban', { uid: id, flag: false, reason: '' }), 'Пользователь разблокирован'); return; }
           F.modal({ title: 'Заблокировать ' + F.fullName(u), body: '<p class="muted small" style="margin-top:0">Заблокированный видит сайт, но не может публиковать записи, комментарии и сообщения.</p><div class="form-row"><label>Причина (увидит пользователь)</label><input class="input" id="bn-r" maxlength="140"></div>',
             actions: [{ label: 'Отмена', cls: 'btn-ghost' }, { label: 'Заблокировать', cls: 'btn-danger', onClick: m => { const r = F.$('#bn-r', m.body).value.trim(); m.close(); act(sb.rpc('admin_set_ban', { uid: id, flag: true, reason: r }), 'Пользователь заблокирован'); } }] });
-        } else if (b.dataset.a === 'clr') F.confirm('Сбросить юзернейм @' + u.username + '? Пользователю придётся выбрать новый.', 'Сбросить').then(ok => ok && act(sb.rpc('admin_clear_username', { uid: id }), 'Юзернейм сброшен'));
+        } else if (b.dataset.a === 'clr') F.confirm('Сбросить никнейм @' + u.username + '? Пользователю придётся выбрать новый.', 'Сбросить').then(ok => ok && act(sb.rpc('admin_clear_username', { uid: id }), 'Никнейм сброшен'));
         else if (b.dataset.a === 'del') F.confirm('Удалить пользователя ' + F.fullName(u) + ' вместе со всеми его записями, фото и перепиской? Это нельзя отменить.', 'Удалить навсегда').then(ok => ok && act(sb.rpc('admin_delete_user', { uid: id }), 'Пользователь удалён'));
       };
     }
@@ -120,6 +120,38 @@
       };
     }
 
+    /* ---------- обращения в поддержку ---------- */
+    async function support() {
+      box.innerHTML = '<div class="card card-pad muted">Загружаем…</div>';
+      const r = await sb.from('support_tickets').select('*').order('created_at', { ascending: false }).limit(60);
+      if (tab !== 'support') return; box.onchange = null;
+      if (r.error) { box.innerHTML = `<div class="card card-pad"><b>Поддержка не подключена.</b><p class="muted small">${esc(F.niceError(r.error.message))}</p><p class="small">Выполните в Supabase миграцию 008.</p></div>`; return; }
+      const nm = id => esc(F.fullName(F.user(id)));
+      box.innerHTML = r.data.length ? r.data.map(t => `<section class="card card-pad" style="margin-bottom:12px" data-tk="${t.id}"><div class="tk-h"><b>${esc(t.subject)}</b><span class="tk-st ${t.status}">${t.status === 'open' ? 'Ждёт ответа' : t.status === 'answered' ? 'Отвечено' : 'Закрыто'}</span></div><div class="muted small">${nm(t.user_id)} · ${new Date(t.created_at).toLocaleString('ru-RU')}</div><p>${esc(t.body).replace(/\n/g, '<br>')}</p>${t.reply ? `<div class="tk-reply"><b>Ваш ответ</b><p>${esc(t.reply).replace(/\n/g, '<br>')}</p></div>` : ''}<textarea class="input" rows="2" maxlength="3000" placeholder="Ответ пользователю"></textarea><div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-sm" data-a="reply">Ответить</button><button class="btn btn-ghost btn-sm" data-a="close">Закрыть обращение</button></div></section>`).join('') : '<div class="card card-pad muted">Обращений пока нет.</div>';
+      box.onclick = async e => {
+        const b = e.target.closest('[data-a]'); if (!b) return; const card = b.closest('[data-tk]'), id = card.dataset.tk;
+        const patch = b.dataset.a === 'close' ? { status: 'closed' } : { status: 'answered', reply: F.$('textarea', card).value.trim(), replied_at: new Date().toISOString() };
+        if (b.dataset.a === 'reply' && !patch.reply) { F.toast('Напишите ответ'); return; }
+        const u = await sb.from('support_tickets').update(patch).eq('id', id); if (u.error) { F.toast(F.niceError(u.error.message)); return; }
+        F.toast('Готово'); support();
+      };
+    }
+
+    /* ---------- заявки на галочку ---------- */
+    async function badges() {
+      box.innerHTML = '<div class="card card-pad muted">Загружаем…</div>';
+      const r = await sb.from('badge_requests').select('*').order('created_at', { ascending: false }).limit(60);
+      if (tab !== 'badges') return; box.onchange = null;
+      if (r.error) { box.innerHTML = `<div class="card card-pad"><b>Заявки не подключены.</b><p class="muted small">${esc(F.niceError(r.error.message))}</p><p class="small">Выполните в Supabase миграцию 008.</p></div>`; return; }
+      const BN = { verified: 'Подтверждённый аккаунт', blogger: 'Блогер' };
+      box.innerHTML = r.data.length ? r.data.map(t => { const u = F.user(t.user_id); return `<section class="card card-pad" style="margin-bottom:12px" data-br="${t.id}"><div class="tk-h"><a href="profile.html?id=${t.user_id}"><b>${esc(F.fullName(u))}</b></a><span class="tk-st ${t.status}">${t.status === 'pending' ? 'Ждёт решения' : t.status === 'approved' ? 'Одобрена' : 'Отклонена'}</span></div><div class="muted small">${BN[t.badge]} · ${new Date(t.created_at).toLocaleString('ru-RU')}</div><p>${esc(t.reason).replace(/\n/g, '<br>')}</p>${t.link ? `<p class="small"><a href="${esc(t.link)}" target="_blank" rel="noopener noreferrer">${esc(t.link)}</a></p>` : ''}${t.status === 'pending' ? `<div style="display:flex;gap:8px"><button class="btn btn-sm" data-ok="1">Выдать галочку</button><button class="btn btn-ghost btn-sm" data-ok="0">Отклонить</button></div>` : ''}</section>`; }).join('') : '<div class="card card-pad muted">Заявок пока нет.</div>';
+      box.onclick = async e => {
+        const b = e.target.closest('[data-ok]'); if (!b) return; const id = b.closest('[data-br]').dataset.br;
+        const x = await sb.rpc('admin_review_badge', { req: id, approve: b.dataset.ok === '1' }); if (x.error) { F.toast(F.niceError(x.error.message)); return; }
+        F.toast('Готово'); badges();
+      };
+    }
+
     /* ---------- ивенты ---------- */
     async function events() {
       box.innerHTML = '<div class="card card-pad muted">Загружаем…</div>';
@@ -163,7 +195,7 @@
     function draw() {
       clearInterval(timer);
       tabs.innerHTML = TABS.map(t => `<button class="tab${tab === t[0] ? ' active' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
-      ({ stats, users, posts, comments, communities, events }[tab] || stats)();
+      ({ stats, users, posts, comments, communities, events, support, badges }[tab] || stats)();
       if (tab === 'stats') timer = setInterval(() => { if (!document.hidden) stats(); }, 15000);
     }
     tabs.addEventListener('click', e => { const t = e.target.closest('[data-t]'); if (!t) return; tab = t.dataset.t; q = ''; draw(); });

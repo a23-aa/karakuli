@@ -1,5 +1,5 @@
 /* ===================================================================
-   Каракули — ядро: данные (LocalStorage), демо-наполнение, графика,
+   CrownNet — ядро: данные (LocalStorage), демо-наполнение, графика,
    оболочка (меню, поиск), общие компоненты (модалки, тосты, лайтбокс).
 
    Слой данных изолирован в F.db()/F.save() и функциях-операциях
@@ -82,14 +82,17 @@
     more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     logout: '<path d="M10 4H5v16h5 M14 8l4 4-4 4 M18 12H9"/>',
+    eye: '<path d="M2 12s3.600-7 10-7 10 7 10 7-3.600 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.500 9.500a2.500 2.500 0 1 1 3.500 2.300c-.700.400-1 .900-1 1.700 M12 17h.01"/>',
+    download: '<path d="M12 4v11 M7 11l5 5 5-5 M5 20h14"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     folder: '<path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     smile: '<circle cx="12" cy="12" r="8"/><path d="M9 14c1.5 2 4.5 2 6 0 M9.5 10h.01 M14.5 10h.01"/>'
   };
   F.ic = (n, s) => `<svg class="ic" viewBox="0 0 24 24" width="${s || 20}" height="${s || 20}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ''}</svg>`;
-  F.logoMark = (w) => `<svg viewBox="0 0 40 40" width="${w || 40}" height="${w || 40}" aria-hidden="true"><path d="M5 11Q5 5 11 5H29Q35 5 35 11V23Q35 29 29 29H21L13 36V29H11Q5 29 5 23Z" fill="#dfe6ff" stroke="#1d2a5c" stroke-width="2.6" stroke-linejoin="round"/><path d="M10 19q2.500-8 5 0t5 0t5 0t5 0" fill="none" stroke="#6c85ff" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/><path d="M34 1.500l1.500 3.300 3.300 1.500-3.300 1.500L34 11l-1.500-3.200L29.200 6.300l3.300-1.500z" fill="#ffd27f" stroke="#1d2a5c" stroke-width="1.400" stroke-linejoin="round"/></svg>`;
-  F.logoHTML = () => `<a class="logo" href="index.html">${F.logoMark()}Каракули</a>`;
+  F.logoMark = (w) => `<svg viewBox="0 0 64 64" width="${w || 40}" height="${w || 40}" aria-hidden="true" class="crown"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#d99a1b"/></linearGradient></defs><ellipse cx="32" cy="43" rx="26" ry="8" fill="none" stroke="url(#cg)" stroke-width="3.4" transform="rotate(-8 32 43)" opacity=".8"/><path d="M13 41L9.500 17L23 28L32 10L41 28L54.500 17L51 41Z" fill="url(#cg)" stroke="#8a5a00" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+  F.logoHTML = () => `<a class="logo" href="index.html">${F.logoMark()}<span class="logo-t">Crown<b>Net</b></span></a>`;
 
   /* ---------- процедурная графика: аватары и фотографии ---------- */
   function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
@@ -102,24 +105,13 @@
   const sparkle = (x, y, k, fill) => `<path d="M${x} ${y - k}Q${x + k * .2} ${y - k * .2} ${x + k} ${y}Q${x + k * .2} ${y + k * .2} ${x} ${y + k}Q${x - k * .2} ${y + k * .2} ${x - k} ${y}Q${x - k * .2} ${y - k * .2} ${x} ${y - k}Z" fill="${fill || '#fff'}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>`;
   const GRAIN = (w, h, op) => `<filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 .12  0 0 0 0 .16  0 0 0 0 .4  0 0 0 .55 0"/></filter><rect width="${w}" height="${h}" filter="url(#g)" opacity="${op}"/>`;
 
-  F.avatarFor = function (seed) {
-    const r = rng(hashStr(String(seed)));
-    const h = Math.floor(r() * 360);
-    const skin = ['#ffe3d1', '#f8d3b9', '#efc0a0', '#d9a47f'][Math.floor(r() * 4)];
-    const hair = ['#2b2d5b', '#5b3b2b', '#c9784a', '#242424', '#8a5cf0', '#e58fb5', '#3a6fd8'][Math.floor(r() * 7)];
-    const shirt = ['#6c85ff', '#b8a6ff', '#ff9fbb', '#7fd8c0', '#ffd27f'][Math.floor(r() * 5)];
-    const iris = ['#4f69e6', '#7c63ec', '#2ea88c', '#b5651d', '#d9507a'][Math.floor(r() * 5)];
-    const style = Math.floor(r() * 4);
-    const st = `stroke="${INK}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"`;
-    let back = '', front = '';
-    if (style === 0) front = `<path d="M27 50C22 20 78 20 73 50C67 40 58 34 50 34C42 34 33 40 27 50Z" fill="${hair}" ${st}/><path d="M38 28Q50 22 62 28" fill="none" stroke="#fff" stroke-width="2.4" opacity=".5" stroke-linecap="round"/>`;
-    else if (style === 1) { back = `<path d="M24 52C20 14 80 14 76 52L77 76L23 76Z" fill="${hair}" ${st}/>`; front = `<path d="M28 48C30 28 70 28 72 48C62 41 53 36 50 36C46 36 37 41 28 48Z" fill="${hair}" ${st}/><path d="M36 28Q50 21 64 28" fill="none" stroke="#fff" stroke-width="2.4" opacity=".5" stroke-linecap="round"/>`; }
-    else if (style === 2) front = `<circle cx="50" cy="20" r="8" fill="${hair}" ${st}/><path d="M27 50C22 20 78 20 73 50C70 40 62 31 50 31C38 31 30 40 27 50Z" fill="${hair}" ${st}/>`;
-    else front = `<path d="M27 47C24 22 76 22 73 47C66 43 59 34 50 37C44 39 36 45 27 47Z" fill="${hair}" ${st}/><path d="M27 47L24 64 32 54Z M73 47L76 64 68 54Z" fill="${hair}" ${st}/>`;
-    const eye = x => `<ellipse cx="${x}" cy="52" rx="4.6" ry="5.8" fill="#fff" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><ellipse cx="${x}" cy="53" rx="3.3" ry="4.4" fill="${iris}"/><circle cx="${x}" cy="53.5" r="1.8" fill="${INK}"/><circle cx="${x - 1.3}" cy="50.8" r="1.5" fill="#fff"/><path d="M${x - 5.5} 47.5Q${x} 45 ${x + 5.5} 47.5" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 85% 90%)"/><stop offset="1" stop-color="hsl(${(h + 45) % 360} 80% 78%)"/></linearGradient>${roughF('r', .045, 2.4)}</defs><rect width="100" height="100" fill="url(#b)"/>${sparkle(14 + r() * 12, 14 + r() * 10, 5)}${sparkle(80 + r() * 10, 18 + r() * 12, 3.6, '#fff6c8')}<g filter="url(#r)">${back}<path d="M15 102C15 79 33 71 50 71S85 79 85 102Z" fill="${shirt}" ${st}/><path d="M42 74Q50 82 58 74" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/><rect x="44" y="60" width="12" height="15" rx="5" fill="${skin}" ${st}/><ellipse cx="50" cy="49" rx="21" ry="22" fill="${skin}" ${st}/>${eye(41)}${eye(59)}<path d="M36 59l3 -1 M37.5 61.5l3 -1 M64 58l-3 -1 M62.5 61.5l-3 -1" stroke="#ff7f9f" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M45 61Q50 66 55 61" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>${front}</g></svg>`;
-    return svgURI(svg);
+  /* аватар по умолчанию: первая буква ника на белом круге, без картинок и рисунков */
+  const LET_COLORS = ['#c47f00', '#2f6fe0', '#c2385a', '#17906b', '#7a4fd6', '#d4571d', '#0f8aa8'];
+  F.letterAvatar = function (name, seed) {
+    const ch = (String(name || '?').trim().charAt(0) || '?').toUpperCase(), c = LET_COLORS[hashStr(String(seed || name)) % LET_COLORS.length];
+    return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="49" fill="#fff" stroke="#e3e5ee" stroke-width="2"/><text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-family="Inter,Segoe UI,Arial,sans-serif" font-weight="700" font-size="52" fill="${c}">${ch.replace(/[<>&]/g, '')}</text></svg>`);
   };
+  F.avatarFor = F.letterAvatar;
   /* рисованные значки сообществ */
   const GLYPH = {
     '👑': '<path d="M24 68L20 34L38 50L50 28L62 50L80 34L76 68Z"/><path d="M25 77H75"/><circle cx="20" cy="32" r="3"/><circle cx="50" cy="26" r="3"/><circle cx="80" cy="32" r="3"/>',
@@ -177,14 +169,14 @@
   };
 
   /* ---------- данные: см. data.js (Supabase) ---------- */
-  F.defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true, follow: true } });
+  F.defaultSettings = () => ({ theme: 'light', accent: 'blue', privacy: { profile: 'all', messages: 'all', online: true }, notify: { like: true, comment: true, friend_request: true, friend_accept: true, message: true, community_post: true, repost: true, follow: true, mention: true } });
 
   /* ---------- пользователи ---------- */
   F.me = () => { const id = F.sessionId(); return id ? (F.db().users[id] || null) : null; };
   F.user = id => F.db().users[id];
   F.allUsers = () => Object.values(F.db().users);
-  F.fullName = u => u ? (u.first + ' ' + u.last).trim() : 'Удалённый пользователь';
-  /* ---------- юзернеймы и галочки ---------- */
+  F.fullName = u => u ? (u.username || (u.first + ' ' + u.last).trim() || 'user') : 'Удалённый пользователь';
+  /* ---------- никнеймы и галочки ---------- */
   const BADGES = {
     owner: { fill: '#f2b705', ink: '#6b4300', title: 'Владелец сайта' },
     verified: { fill: '#3b82f6', ink: '#1e3a8a', title: 'Подтверждённая личность' },
@@ -203,10 +195,10 @@
   F.handle = u => u && u.username ? '@' + u.username : '';
   F.byUsername = name => { const n = String(name || '').replace(/^@/, '').toLowerCase(); return n ? F.allUsers().find(u => u.username === n) : null; };
   F.isAdmin = () => { const m = F.me(); return !!(m && m.isAdmin); };
-  F.USERNAME_RE = /^[a-z][a-z0-9_]{4,31}$/;
+  F.USERNAME_RE = /^[a-z][a-z0-9_]{1,31}$/;
   F.usernameProblem = v => {
     v = String(v || '').trim().toLowerCase();
-    if (v.length < 5) return 'Не короче 5 символов';
+    if (v.length < 2) return 'Не короче 2 символов';
     if (v.length > 32) return 'Не длиннее 32 символов';
     if (!/^[a-z]/.test(v)) return 'Должен начинаться с латинской буквы';
     if (!F.USERNAME_RE.test(v)) return 'Только латиница, цифры и «_»';
@@ -215,7 +207,7 @@
   F.community = id => F.db().communities.find(c => c.id === id);
   F.members = c => (c.base || 0) + c.members.length;
   const avCache = {};
-  F.avatar = u => { if (!u) return F.avatarFor('deleted'); if (u.avatar) return u.avatar; return avCache[u.id] || (avCache[u.id] = F.avatarFor(u.id + u.first)); };
+  F.avatar = u => { if (!u) return F.letterAvatar('?', 'deleted'); if (u.avatar) return u.avatar; const nm = F.fullName(u), k = u.id + '|' + nm; return avCache[k] || (avCache[k] = F.letterAvatar(nm, u.id)); };
   /* обложка по умолчанию: аккуратный градиент с мягкими кругами */
   const GRADS = [['#6d83ff', '#b69cff'], ['#4cc9b0', '#6d9bff'], ['#ff8fa8', '#ffb98a'], ['#7a8cff', '#52d1dc'], ['#a58bff', '#ff9ccc'], ['#5ea3ff', '#7be0b4'], ['#ffa86b', '#ff7a9a'], ['#6c7bd9', '#8fd3ff']];
   const gradCache = {};
@@ -270,6 +262,7 @@
     (d.messages[k] = d.messages[k] || []).push({ id: F.uid('m'), from: me.id, to, text: text || '', photo: photo || null, kind: (extra && extra.kind) || (photo ? 'photo' : 'text'), dur: (extra && extra.dur) || 0, fname: (extra && extra.fname) || '', ts: Date.now(), read: false });
     F.notify(to, 'message', me.id, { link: 'messages.html?u=' + me.id });
     if (!F.save()) { d.messages[k].pop(); return false; }
+    if (F.sound) F.sound.play('send');
     return true;
   };
 
@@ -282,8 +275,11 @@
     message: { ic: 'chat', text: 'отправил(а) вам сообщение' },
     community_post: { ic: 'groups', text: 'опубликовало новую запись' },
     repost: { ic: 'repost', text: 'поделился(ась) вашей записью' },
-    follow: { ic: 'user', text: 'подписался(-ась) на вас' }
+    follow: { ic: 'user', text: 'подписался(-ась) на вас' },
+    mention: { ic: 'user', text: 'упомянул(а) вас' }
   };
+  /** @ник в тексте → уведомление «упомянул(а) вас» */
+  F.mentions = (text, from, link, skip) => { const seen = new Set(skip || []); String(text || '').replace(/(^|[^\w])@([A-Za-z][A-Za-z0-9_]{1,31})/g, (m, a, n) => { const u = F.byUsername(n.toLowerCase()); if (u && !seen.has(u.id)) { seen.add(u.id); F.notify(u.id, 'mention', from, { link }); } return m; }); };
   F.notify = (to, type, from, extra) => {
     if (to === from) return;
     const u = F.user(to); if (!u || u.bot) return;
@@ -397,7 +393,7 @@
   /* ---------- оболочка страницы ---------- */
   /* основное меню; остальное спрятано в «Ещё» */
   const NAV = [['index', 'Главная', 'home'], ['news', 'Новости', 'news'], ['profile', 'Моя страница', 'user'], ['messages', 'Сообщения', 'chat', 'msg'], ['friends', 'Друзья', 'friends', 'fr'], ['communities', 'Сообщества', 'groups'], ['photos', 'Фотографии', 'photo']];
-  const NAV_MORE = [['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings']];
+  const NAV_MORE = [['bookmarks', 'Закладки', 'bookmark'], ['notifications', 'Уведомления', 'bell', 'nt'], ['settings', 'Настройки', 'settings'], ['support', 'Поддержка', 'help']];
 
   /* ---------- ивенты: общее время и «пилюля» с таймером в меню ---------- */
   F.events = {
@@ -519,11 +515,11 @@
     const pop = d.communities.slice().sort((a, b) => F.members(b) - F.members(a)).slice(0, 3);
     el.innerHTML = `
 <section class="card card-pad"><a href="profile.html" class="rowitem" style="color:inherit" aria-label="Мой профиль"><span class="ava-wrap"><img class="ava ava-l" src="${F.avatar(me)}" alt=""><i class="online-dot"></i></span>
-  <span class="grow"><b style="font-size:17px">${F.esc(me.first)}${F.badgeHTML(me, 16)}</b>${me.username ? `<span class="muted small" style="display:block">@${F.esc(me.username)}</span>` : ''}<span class="on-text">Online</span></span></a>
+  <span class="grow"><b style="font-size:17px">${F.esc(F.fullName(me))}${F.badgeHTML(me, 16)}</b>${me.username ? `<span class="muted small" style="display:block">@${F.esc(me.username)}</span>` : ''}<span class="on-text">Online</span></span></a>
   <a class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" href="profile.html?edit=1">Редактировать профиль</a></section>
 <section class="card card-pad"><div class="sec-title">Друзья онлайн <a href="friends.html?tab=online">${online.length ? 'все' : ''}</a></div>
-  ${online.length ? online.map(u => `<div class="rowitem"><a class="ava-wrap" href="profile.html?id=${u.id}" aria-label="${F.esc?F.esc(u.first):''}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><i class="online-dot" style="width:10px;height:10px"></i></a><a class="grow" style="color:var(--ink)" href="profile.html?id=${u.id}"><b>${F.nameHTML(u, 13)}</b></a><a class="icon-btn" style="width:30px;height:30px" href="messages.html?u=${u.id}" title="Написать">${F.ic('chat', 18)}</a></div>`).join('') : '<div class="muted small">Сейчас никого нет онлайн</div>'}</section>
-${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни рождения</div>${bd.map(b => `<a class="rowitem" href="profile.html?id=${b.u.id}"><img class="ava ava-s" src="${F.avatar(b.u)}" alt=""><span class="grow"><b>${F.nameHTML(b.u, 13)}</b><span class="muted small">${b.days === 0 ? 'сегодня 🎂' : b.days === 1 ? 'завтра' : 'через ' + b.days + ' ' + F.plural(b.days, 'день', 'дня', 'дней')}</span></span></a>`).join('')}</section>` : ''}
+  ${online.length ? online.map(u => `<div class="rowitem"><a class="ava-wrap" href="profile.html?id=${u.id}" aria-label="${F.esc(F.fullName(u))}"><img class="ava ava-s" src="${F.avatar(u)}" alt=""><i class="online-dot" style="width:10px;height:10px"></i></a><a class="grow" style="color:var(--ink)" href="profile.html?id=${u.id}"><b>${F.nameHTML(u, 13)}</b></a><a class="icon-btn" style="width:30px;height:30px" href="messages.html?u=${u.id}" title="Написать">${F.ic('chat', 18)}</a></div>`).join('') : '<div class="muted small">Сейчас никого нет онлайн</div>'}</section>
+${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни рождения</div>${bd.map(b => `<a class="rowitem" href="profile.html?id=${b.u.id}"><img class="ava ava-s" src="${F.avatar(b.u)}" alt=""><span class="grow"><b>${F.nameHTML(b.u, 13)}</b><span class="muted small">${b.days === 0 ? 'сегодня' : b.days === 1 ? 'завтра' : 'через ' + b.days + ' ' + F.plural(b.days, 'день', 'дня', 'дней')}</span></span></a>`).join('')}</section>` : ''}
 <section class="card card-pad"><div class="sec-title">Популярные сообщества <a href="communities.html">все</a></div>
   ${pop.length ? '' : '<div class="muted small">Сообществ пока нет. <a href="communities.html">Создать первое</a></div>'}${pop.map(c => `<a class="rowitem" href="community.html?id=${c.id}"><img class="ava ava-m" style="border-radius:14px" src="${F.cAvatar(c)}" alt=""><span class="grow"><b>${F.esc(c.name)}</b><span class="muted small">${F.fmtCount(F.members(c))} подписчиков</span></span></a>`).join('')}</section>`;
   };
@@ -540,20 +536,20 @@ ${bd.length ? `<section class="card card-pad"><div class="sec-title">Дни ро
     document.body.insertAdjacentHTML('beforeend', `<div class="loader"><div class="loader-box card card-pad center" style="max-width:420px">${F.logoMark(60)}<h2 class="hand" style="margin:8px 0;font-size:26px">Не получилось открыть сайт</h2><p class="muted">${F.esc(msg)}</p><button class="btn" onclick="location.reload()">Попробовать снова</button>${canLogout ? '<p><button class="link-btn" id="fatal-out">Выйти из аккаунта</button></p>' : ''}</div></div>`);
     const b = $('#fatal-out'); if (b) b.onclick = () => F.logout();
   };
-  /** Окно выбора юзернейма (нельзя закрыть, пока не выбран). */
+  /** Окно выбора никнейма (нельзя закрыть, пока не выбран). */
   F.askUsername = () => {
     let timer = null, ok = false;
-    F.modal({ title: 'Выберите юзернейм', locked: true,
+    F.modal({ title: 'Выберите никнейм', locked: true,
       body: `<p class="muted small" style="margin-top:0">Это ваше уникальное имя вида @name. По нему вас смогут найти. Только латиница, цифры и «_», от 5 до 32 символов.</p>
-<div class="form-row"><label>Юзернейм</label><input class="input" id="u-n" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, ivan_petrov"></div><div class="form-msg" id="u-m"></div>`,
+<div class="form-row"><label>Никнейм</label><input class="input" id="u-n" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, ivan_petrov"></div><div class="form-msg" id="u-m"></div>`,
       onOpen: m => {
         const inp = F.$('#u-n', m.body), msg = F.$('#u-m', m.body);
         inp.addEventListener('input', () => { ok = false; clearTimeout(timer); timer = setTimeout(async () => { const r = await F.checkUsername(inp.value); ok = r.ok; msg.className = 'form-msg ' + (r.ok ? 'ok' : 'err'); msg.textContent = r.text; }, 350); });
       },
-      actions: [{ label: 'Занять юзернейм', onClick: async m => {
+      actions: [{ label: 'Занять никнейм', onClick: async m => {
         const inp = F.$('#u-n', m.body), msg = F.$('#u-m', m.body);
         const r = await F.setUsername(inp.value);
-        if (r.ok) { m.close(); F.toast('Юзернейм @' + inp.value.trim().toLowerCase() + ' ваш'); const pn = F.$('#p-handle'); if (pn) pn.textContent = F.handle(F.me()); } else { msg.className = 'form-msg err'; msg.textContent = r.text; }
+        if (r.ok) { m.close(); F.toast('Никнейм @' + inp.value.trim().toLowerCase() + ' ваш'); const pn = F.$('#p-handle'); if (pn) pn.textContent = F.handle(F.me()); } else { msg.className = 'form-msg err'; msg.textContent = r.text; }
       } }] });
   };
   /** Страница для авторизованных. fn(content, right, me) вызывается, когда данные загружены. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Каракули — QA-клиент: «живой посетитель», который ходит по всем страницам сайта на компьютере и телефоне,
+/* CrownNet — QA-клиент: «живой посетитель», который ходит по всем страницам сайта на компьютере и телефоне,
    нажимает кнопки и ищет проблемы: ошибки в консоли, битые картинки и ссылки, горизонтальную прокрутку,
    мелкие кнопки на телефоне, кнопки без подписи, плохую контрастность, пустые и сломанные состояния.
 
@@ -11,7 +11,7 @@ let pw; try { pw = require('playwright'); } catch (e) { console.error('Нуже�
 const args = process.argv.slice(2), live = args.indexOf('--live') >= 0, liveUrl = live ? (args[args.indexOf('--live') + 1] || '') : '';
 const ROOT = path.resolve(__dirname, '..'), OUT = path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
-const AUTH_PAGES = ['index', 'news', 'profile', 'friends', 'messages', 'communities', 'photos', 'bookmarks', 'notifications', 'settings', 'events'];
+const AUTH_PAGES = ['index', 'news', 'profile', 'friends', 'messages', 'communities', 'photos', 'bookmarks', 'notifications', 'settings', 'events', 'support'];
 const PUBLIC_PAGES = ['login', 'register'];
 const DANGER = /удал|выйти|выход|блок|бан|заблок|отписа|пожаловат|очист|logout|delete|remove|ban/i;
 const issues = []; const add = (sev, page, vp, what, extra) => issues.push({ sev, page, vp, what, extra: extra || '' });
@@ -26,7 +26,7 @@ function serve() {
 /* ---------- проверки одной страницы ---------- */
 async function audit(p, name, vp, mobile) {
   const r = await p.evaluate(mob => {
-    const out = { overflow: [], imgs: [], noname: [], small: [], contrast: [], empty: false, title: document.title };
+    const out = { emoji: [], overflow: [], imgs: [], noname: [], small: [], contrast: [], empty: false, title: document.title };
     const vw = document.documentElement.clientWidth, vis = e => { const s = getComputedStyle(e), b = e.getBoundingClientRect(); return s.visibility !== 'hidden' && s.display !== 'none' && b.width > 0 && b.height > 0 && +s.opacity > 0.05; };
     const desc = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
     if (document.documentElement.scrollWidth > vw + 1) {
@@ -50,11 +50,13 @@ async function audit(p, name, vp, mobile) {
       const L1 = lum(fg), L2 = lum(bg), ratio = (Math.max(L1, L2) + .05) / (Math.min(L1, L2) + .05), fs = parseFloat(getComputedStyle(e).fontSize);
       if (ratio < (fs >= 18 ? 2.2 : 3.0) && out.contrast.length < 6) out.contrast.push(desc(e) + ' «' + t.slice(0, 24) + '» ' + ratio.toFixed(1) + ':1');
     }
+    const em = document.body.innerText.match(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu); if (em) out.emoji = [...new Set(em)].slice(0, 6);
     const c = document.querySelector('#content'); out.empty = !!c && c.textContent.trim().length < 3;
     return out;
   }, mobile);
   if (r.overflow.length || r.overflowW) add('high', name, vp, 'Горизонтальная прокрутка (ширина ' + r.overflowW + ')', r.overflow.join('; '));
   if (r.imgs.length) add('high', name, vp, 'Битые картинки', r.imgs.slice(0, 4).join(', '));
+  if (r.emoji.length) add('med', name, vp, 'Смайлики на странице (в CrownNet их быть не должно)', r.emoji.join(' '));
   if (r.empty) add('high', name, vp, 'Пустой контент страницы');
   const uniq = a => [...new Set(a)];
   if (r.noname.length) add('low', name, vp, 'Элементы без подписи (доступность)', uniq(r.noname).slice(0, 6).join('; '));
@@ -103,7 +105,7 @@ async function poke(p, name, vp, errors) {
     for (const n of PUBLIC_PAGES) { await ctx.clearCookies(); await page.evaluate(() => { try { localStorage.clear(); } catch (e) { /* ок */ } }).catch(() => { }); await visit(n); }
     if (!live) {
       // регистрируемся как новый посетитель и пользуемся сайтом
-      const reg = async (first, last, uname, mail) => { await page.goto(base + 'register.html'); await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('__mock_sb__') || '{"t":{},"users":[],"uid":null}'); d.uid = null; localStorage.setItem('__mock_sb__', JSON.stringify(d)); }); await page.goto(base + 'register.html'); await page.fill('#first', first); await page.fill('#last', last); await page.fill('#uname', uname); await page.fill('#email', mail); await page.fill('#pass', 'secret1'); await page.fill('#pass2', 'secret1'); await page.click('#reg-form button[type=submit]'); await page.waitForURL(/profile/, { timeout: 8000 }).catch(() => add('high', 'register', vpName, 'Регистрация не завершилась')); await page.waitForTimeout(500); };
+      const reg = async (first, last, uname, mail) => { await page.goto(base + 'register.html'); await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('__mock_sb__') || '{"t":{},"users":[],"uid":null}'); d.uid = null; localStorage.setItem('__mock_sb__', JSON.stringify(d)); }); await page.goto(base + 'register.html'); await page.fill('#uname', uname); await page.fill('#email', mail); await page.fill('#pass', 'secret1'); await page.fill('#pass2', 'secret1'); await page.click('#reg-form button[type=submit]'); await page.waitForURL(/profile/, { timeout: 8000 }).catch(() => add('high', 'register', vpName, 'Регистрация не завершилась')); await page.waitForTimeout(500); };
       await reg('Борис', 'Орлов', 'boris_qa', 'b@qa.ru');
       await page.goto(base + 'index.html'); await page.waitForSelector('.composer textarea').catch(() => { }); await page.fill('.composer textarea', 'Всем привет! #каракули #тест @anya_qa').catch(() => { }); await page.click('[data-c=send]').catch(() => { }); await page.waitForTimeout(500);
       await reg('Аня', 'Смирнова', 'anya_qa', 'a@qa.ru');

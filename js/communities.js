@@ -1,4 +1,4 @@
-/* Каракули — каталог сообществ и страница сообщества (создание, подписка, редактирование, стена). */
+/* CrownNet — каталог сообществ и страница сообщества (создание, подписка, редактирование, стена). */
 (function (F) {
   'use strict';
   const page = document.body.dataset.page;
@@ -99,7 +99,7 @@
           body.innerHTML = `<section class="card card-pad"><dl class="info-table"><dt>Описание</dt><dd>${F.esc(x.desc || 'Описание не заполнено')}</dd><dt>Подписчиков</dt><dd>${F.fmtCount(F.members(x))}</dd><dt>Создатель</dt><dd>${owner ? `<a href="profile.html?id=${owner.id}">${F.esc(F.fullName(owner))}</a>` : '—'}</dd><dt>Создано</dt><dd>${F.fmtDate(x.created || Date.now())}</dd></dl></section>`;
         } else if (tab === 'members') {
           const us = x.members.map(F.user).filter(Boolean);
-          body.innerHTML = `<section class="card card-pad">${us.length ? `<div class="mini-grid">${us.map(u => `<a href="profile.html?id=${u.id}"><img class="ava" src="${F.avatar(u)}" alt=""><span>${F.esc(u.first)}</span></a>`).join('')}</div>` : '<div class="empty">Пока нет участников</div>'}${x.base ? `<p class="muted small" style="margin-bottom:0">и ещё ${F.fmtCount(x.base)} ${F.plural(x.base, 'участник', 'участника', 'участников')}</p>` : ''}</section>`;
+          body.innerHTML = `<section class="card card-pad">${us.length ? `<div class="mini-grid">${us.map(u => `<a href="profile.html?id=${u.id}"><img class="ava" src="${F.avatar(u)}" alt=""><span>${F.esc(F.fullName(u))}</span></a>`).join('')}</div>` : '<div class="empty">Пока нет участников</div>'}${x.base ? `<p class="muted small" style="margin-bottom:0">и ещё ${F.fmtCount(x.base)} ${F.plural(x.base, 'участник', 'участника', 'участников')}</p>` : ''}</section>`;
         } else {
           const ph = []; posts().forEach(p => p.photos.forEach(s => ph.push(s)));
           body.innerHTML = `<section class="card card-pad">${ph.length ? `<div class="pgal">${ph.map((s, i) => `<div class="th" data-img="${i}"><img src="${s}" alt="" loading="lazy"></div>`).join('')}</div>` : `<div class="empty">${F.ic('photo', 40)}<div>В сообществе пока нет фотографий</div></div>`}</section>`;

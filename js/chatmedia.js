@@ -1,4 +1,4 @@
-/* Каракули — вложения чата: голосовые, кружки (видео-сообщения), плееры.
+/* CrownNet — вложения чата: голосовые, кружки (видео-сообщения), плееры.
    Запись — MediaRecorder в браузере; файл сразу уходит в хранилище, в сообщении остаётся ссылка. */
 (function (F) {
   'use strict';
@@ -20,7 +20,7 @@
   }
   F.msgPreview = (m, meId) => {
     const who = m.from === meId ? 'Вы: ' : '';
-    const t = { photo: '📷 Фото', video: '🎬 Видео', voice: '🎤 Голосовое', circle: '⭕ Кружок', file: '📎 ' + (m.fname || 'Файл'), call: '📞 ' + (m.text || 'Звонок') }[m.kind || (m.photo ? 'photo' : 'text')];
+    const t = { photo: 'Фото', video: 'Видео', voice: 'Голосовое', circle: 'Кружок', file: '' + (m.fname || 'Файл'), call: (m.text || 'Звонок') }[m.kind || (m.photo ? 'photo' : 'text')];
     return who + (t && !(m.kind === 'photo' && m.text) ? t : F.esc(m.text));
   };
 

@@ -1,4 +1,4 @@
-/* Каракули — аудио- и видеозвонки 1 на 1 (WebRTC). Сигналы (offer/answer/ICE) идут через таблицу call_signals
+/* CrownNet — аудио- и видеозвонки 1 на 1 (WebRTC). Сигналы (offer/answer/ICE) идут через таблицу call_signals
    и Supabase Realtime; сами звук и видео — напрямую между браузерами. Работает на любой странице сайта. */
 (function (F) {
   'use strict';
@@ -14,15 +14,8 @@
 
   /* ---------- сигнал звонка ---------- */
   function ring(on) {
-    clearInterval(ringTimer); ringTimer = null;
-    if (ringCtx) { try { ringCtx.close(); } catch (e) { /* ок */ } ringCtx = null; }
-    if (!on) return;
-    try {
-      ringCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const beep = () => { if (!ringCtx) return; const o = ringCtx.createOscillator(), g = ringCtx.createGain(); o.frequency.value = 440; g.gain.value = 0.08; o.connect(g); g.connect(ringCtx.destination); o.start(); o.stop(ringCtx.currentTime + 0.35); };
-      beep(); ringTimer = setInterval(() => { beep(); setTimeout(beep, 450); }, 2200);
-    } catch (e) { /* без звука */ }
-    if (navigator.vibrate) navigator.vibrate([300, 200, 300]);
+    if (F.sound) F.sound.ring(!!on);
+    if (on && navigator.vibrate) navigator.vibrate([300, 200, 300]);
   }
 
   /* ---------- окно звонка ---------- */

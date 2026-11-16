@@ -3,29 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Каракули — Регистрация</title>
+<title>CrownNet — Регистрация</title>
 <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
-<meta name="theme-color" content="#4f6df5">
+<meta name="theme-color" content="#09090c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body data-page="register">
-<noscript>Для работы Каракули нужен включённый JavaScript.</noscript>
+<noscript>Для работы CrownNet нужен включённый JavaScript.</noscript>
 <main class="auth">
   <div class="card auth-box">
     <form class="auth-form" id="reg-form" novalidate>
       <span data-logo></span>
       <h1>Регистрация</h1>
-      <div class="form-grid">
-        <div class="form-row"><label for="first">Имя</label><input class="input" id="first" name="first" maxlength="30" autocomplete="given-name" required></div>
-        <div class="form-row"><label for="last">Фамилия</label><input class="input" id="last" name="last" maxlength="30" autocomplete="family-name" required></div>
-      </div>
-      <div class="form-row"><label for="uname">Юзернейм</label><input class="input" id="uname" name="uname" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, ivan_petrov" required><div class="form-msg" id="umsg" style="min-height:18px;margin-top:4px"></div></div>
-      <div class="form-row"><label for="email">Электронная почта</label><input class="input" id="email" name="email" type="email" autocomplete="email" required></div>
+      <div class="auth-tabs" role="tablist"><button type="button" class="tab active" data-m="email">Почта</button><button type="button" class="tab" data-m="phone">Телефон</button></div>
+      <div class="form-row"><label for="uname">Никнейм</label><input class="input" id="uname" name="uname" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, ivan" required><div class="form-msg" id="umsg" style="min-height:18px;margin-top:4px"></div></div>
+      <div class="form-row" id="row-phone" hidden><label for="phone">Номер телефона</label><input class="input" id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+7 900 000-00-00"></div>
+      <div class="form-row" id="row-email"><label for="email">Электронная почта</label><input class="input" id="email" name="email" type="email" autocomplete="email" required></div>
       <div class="form-row"><label for="pass">Пароль</label><input class="input" id="pass" name="pass" type="password" autocomplete="new-password" placeholder="Не короче 6 символов" required></div>
       <div class="form-row"><label for="pass2">Повторите пароль</label><input class="input" id="pass2" name="pass2" type="password" autocomplete="new-password" required></div>
       <div class="form-msg err" id="msg" role="alert"></div>
@@ -39,6 +37,7 @@
 <script src="js/app.js"></script>
 <script src="js/data.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/sounds.js"></script>
 <script src="js/extras.js"></script>
 </body>
 </html>

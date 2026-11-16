@@ -1,20 +1,59 @@
-/* Каракули — регистрация, вход, вход через сервисы, восстановление пароля (Supabase Auth). */
+/* CrownNet — регистрация, вход, вход через сервисы, восстановление пароля (Supabase Auth). */
 (function (F) {
   'use strict';
   const page = document.body.dataset.page;
   const CFG = window.KARAKULI_CONFIG || {};
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const PHONE_RE = /^\+\d{10,15}$/;
+  const normPhone = v => { let p = String(v || '').replace(/[\s\-()]/g, ''); if (/^8\d{10}$/.test(p)) p = '+7' + p.slice(1); else if (/^7\d{10}$/.test(p)) p = '+' + p; return p; };
+  /** переключатель «Почта / Телефон» на формах входа и регистрации */
+  function modeTabs(form) {
+    let mode = 'email';
+    const set = m => { mode = m; F.$$('.auth-tabs .tab', form).forEach(t => t.classList.toggle('active', t.dataset.m === m)); F.$('#row-email', form).hidden = m !== 'email'; F.$('#row-phone', form).hidden = m !== 'phone'; };
+    F.$$('.auth-tabs .tab', form).forEach(t => t.addEventListener('click', () => set(t.dataset.m)));
+    return () => mode;
+  }
+  /** окно ввода кода из письма / SMS */
+  function askCode(target, kind) {
+    const where = kind === 'sms' ? target.phone : target.email;
+    let wait = 0, tm = null;
+    F.modal({
+      title: 'Введите код',
+      body: `<p class="muted small" style="margin-top:0">${kind === 'sms' ? 'Мы отправили код в SMS на' : 'Мы отправили код на почту'} <b>${F.esc(where)}</b>.</p>
+<div class="form-row"><label for="c-code">Код</label><input class="input code-input" id="c-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="000000"></div>
+<div class="form-msg err" id="c-msg" role="alert"></div><button class="link-btn small" id="c-again" type="button">Отправить код ещё раз</button>`,
+      actions: [{ label: 'Подтвердить', onClick: async m => {
+        const code = F.$('#c-code', m.body).value.replace(/\D/g, ''), r = F.$('#c-msg', m.body);
+        if (code.length < 6) { r.textContent = 'Введите код целиком'; return; }
+        const res = await F.sb.auth.verifyOtp(Object.assign({ token: code, type: kind === 'sms' ? 'sms' : 'signup' }, kind === 'sms' ? { phone: target.phone } : { email: target.email }));
+        if (res.error) { r.textContent = /expired|invalid/i.test(res.error.message) ? 'Неверный код или он устарел' : authErr(res.error.message); return; }
+        location.href = 'profile.html?welcome=1';
+      } }],
+      onOpen: m => {
+        const a = F.$('#c-again', m.body); F.$('#c-code', m.body).focus();
+        a.onclick = async () => {
+          if (wait > 0) return;
+          const res = await F.sb.auth.resend(Object.assign({ type: kind === 'sms' ? 'sms' : 'signup' }, kind === 'sms' ? { phone: target.phone } : { email: target.email }));
+          if (res.error) { F.$('#c-msg', m.body).textContent = authErr(res.error.message); return; }
+          F.toast('Код отправлен снова'); wait = 60; a.disabled = true; clearInterval(tm);
+          tm = setInterval(() => { wait--; a.textContent = wait > 0 ? 'Отправить ещё раз через ' + wait + ' с' : 'Отправить код ещё раз'; if (wait <= 0) { a.disabled = false; clearInterval(tm); } }, 1000);
+        };
+      }
+    });
+  }
   const here = file => new URL(file, location.href).href;
 
   const authErr = m => {
     m = String(m || '');
     if (/Invalid login credentials/i.test(m)) return 'Неверная почта или пароль';
-    if (/Email not confirmed/i.test(m)) return 'Почта не подтверждена. Откройте письмо от Каракулей и перейдите по ссылке.';
+    if (/Email not confirmed/i.test(m)) return 'Почта не подтверждена. Откройте письмо от CrownNet и перейдите по ссылке.';
     if (/already registered|already been registered/i.test(m)) return 'Эта почта уже зарегистрирована';
     if (/at least \d+ characters/i.test(m)) return 'Пароль должен быть не короче 6 символов';
     if (/rate limit|For security purposes|too many/i.test(m)) return 'Слишком много попыток. Подождите минуту и повторите.';
     if (/Unsupported provider|provider is not enabled/i.test(m)) return 'Этот способ входа ещё не включён в настройках Supabase.';
     if (/Signups not allowed|signup.*disabled/i.test(m)) return 'Регистрация сейчас отключена.';
+    if (/phone.*(provider|disabled|not enabled)|sms.*(provider|send)|Unable to get SMS/i.test(m)) return 'Вход по номеру телефона ещё не подключён: нужно включить Phone и SMS-провайдера в Supabase.';
+    if (/Token has expired|otp_expired/i.test(m)) return 'Код устарел. Запросите новый.';
     return F.niceError(m);
   };
 
@@ -43,15 +82,15 @@
   if (page === 'login') {
     F.publicPage(ctx => {
       const form = F.$('#login-form'), msg = F.$('#msg'), btn = F.$('button[type=submit]', form);
-      mountSocial();
+      mountSocial(); const getMode = modeTabs(form);
       if (ctx.recovery) newPasswordModal();
       form.addEventListener('submit', async e => {
         e.preventDefault(); msg.textContent = '';
-        const email = form.email.value.trim(), pass = form.pass.value;
-        if (!EMAIL_RE.test(email)) { msg.textContent = 'Введите корректный адрес электронной почты'; return; }
+        const email = form.email.value.trim(), pass = form.pass.value, byPhone = getMode() === 'phone', phone = normPhone(form.phone.value);
+        if (byPhone ? !PHONE_RE.test(phone) : !EMAIL_RE.test(email)) { msg.textContent = byPhone ? 'Введите номер в формате +7 900 000-00-00' : 'Введите корректный адрес электронной почты'; return; }
         if (!pass) { msg.textContent = 'Введите пароль'; return; }
         btn.disabled = true;
-        const r = await F.sb.auth.signInWithPassword({ email, password: pass });
+        const r = await F.sb.auth.signInWithPassword(byPhone ? { phone, password: pass } : { email, password: pass });
         if (r.error) { btn.disabled = false; msg.textContent = authErr(r.error.message); return; }
         location.href = 'index.html';
       });
@@ -95,26 +134,27 @@
     F.publicPage(() => {
       mountSocial();
       const form = F.$('#reg-form'), msg = F.$('#msg'), btn = F.$('button[type=submit]', form);
+      const getMode = modeTabs(form);
       const un = form.uname, um = F.$('#umsg'); let utimer = null, uok = false;
       un.addEventListener('input', () => { uok = false; clearTimeout(utimer); const v = un.value.trim(); if (!v) { um.textContent = ''; return; }
         utimer = setTimeout(async () => { const r = await F.checkUsername(v); uok = r.ok; um.className = 'form-msg ' + (r.ok ? 'ok' : 'err'); um.textContent = r.text; }, 350); });
       form.addEventListener('submit', async e => {
         e.preventDefault(); msg.className = 'form-msg err'; msg.textContent = '';
-        const first = form.first.value.trim(), last = form.last.value.trim(), email = form.email.value.trim(), p1 = form.pass.value, p2 = form.pass2.value;
+        const byPhone = getMode() === 'phone', phone = normPhone(form.phone.value), email = form.email.value.trim(), p1 = form.pass.value, p2 = form.pass2.value;
         const uname = un.value.trim().toLowerCase(), uprob = F.usernameProblem(uname);
-        const err = !first || !last ? 'Укажите имя и фамилию' : uprob ? 'Юзернейм: ' + uprob.toLowerCase() : !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
+        const err = uprob ? 'Никнейм: ' + uprob.toLowerCase() : byPhone && !PHONE_RE.test(phone) ? 'Введите номер в формате +7 900 000-00-00' : !byPhone && !EMAIL_RE.test(email) ? 'Введите корректный адрес электронной почты'
           : p1.length < 6 ? 'Пароль должен быть не короче 6 символов' : p1 !== p2 ? 'Пароли не совпадают' : '';
         if (err) { msg.textContent = err; return; }
         btn.disabled = true;
         const chk = await F.checkUsername(uname);
-        if (!chk.ok) { btn.disabled = false; um.className = 'form-msg err'; um.textContent = chk.text; msg.textContent = 'Выберите другой юзернейм'; return; }
-        const r = await F.sb.auth.signUp({ email, password: p1, options: { data: { first_name: first, last_name: last, username: uname }, emailRedirectTo: here('index.html') } });
+        if (!chk.ok) { btn.disabled = false; um.className = 'form-msg err'; um.textContent = chk.text; msg.textContent = 'Выберите другой никнейм'; return; }
+        const meta = { first_name: uname, last_name: '', username: uname };
+        const r = await F.sb.auth.signUp(byPhone ? { phone, password: p1, options: { data: meta } } : { email, password: p1, options: { data: meta, emailRedirectTo: here('index.html') } });
         btn.disabled = false;
         if (r.error) { msg.textContent = authErr(r.error.message); return; }
-        if (r.data.user && r.data.user.identities && r.data.user.identities.length === 0) { msg.textContent = 'Эта почта уже зарегистрирована'; return; }
+        if (r.data.user && r.data.user.identities && r.data.user.identities.length === 0) { msg.textContent = byPhone ? 'Этот номер уже зарегистрирован' : 'Эта почта уже зарегистрирована'; return; }
         if (r.data.session) { location.href = 'profile.html?welcome=1'; return; }
-        msg.className = 'form-msg ok'; msg.textContent = 'Почти готово! Мы отправили письмо на ' + email + '. Перейдите по ссылке в нём, затем войдите.';
-        form.reset();
+        askCode({ email, phone }, byPhone ? 'sms' : 'email');
       });
     });
   }

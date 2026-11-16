@@ -1,4 +1,4 @@
-/* Каракули — страница профиля (своя и чужая): шапка, вкладки, редактирование. */
+/* CrownNet — страница профиля (своя и чужая): шапка, вкладки, редактирование. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'profile') return;
@@ -45,11 +45,11 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
         if (own) F.posts.composer(F.$('#comp', body), { onPublish: refreshAll });
         draw();
       } else if (tab === 'info') {
-        const rows = [['Имя', F.fullName(u)], ['Юзернейм', F.handle(u)], ['Дата рождения', F.fmtBirth(u.birth)], ['Город', u.city], ['О себе', u.about], ['На сайте с', F.fmtDate(u.created || Date.now())]].filter(r => r[1]);
+        const rows = [['Имя', F.fullName(u)], ['Никнейм', F.handle(u)], ['Дата рождения', F.fmtBirth(u.birth)], ['Город', u.city], ['О себе', u.about], ['На сайте с', F.fmtDate(u.created || Date.now())]].filter(r => r[1]);
         body.innerHTML = `<section class="card card-pad"><dl class="info-table">${rows.map(r => `<dt>${r[0]}</dt><dd>${F.esc(r[1]).replace(/\n/g, '<br>')}</dd>`).join('')}</dl>${own && !u.about ? '<p><button class="btn btn-ghost btn-sm" data-p="edit">Рассказать о себе</button></p>' : ''}</section>`;
       } else if (tab === 'friends') {
         const fr = u.friends.map(F.user).filter(Boolean);
-        body.innerHTML = `<section class="card card-pad">${fr.length ? `<div class="mini-grid">${fr.map(f => `<a href="profile.html?id=${f.id}"><img class="ava" src="${F.avatar(f)}" alt=""><span>${F.esc(f.first)}</span></a>`).join('')}</div>` : `<div class="empty">${F.ic('friends', 40)}<div>Друзей пока нет</div></div>`}</section>`;
+        body.innerHTML = `<section class="card card-pad">${fr.length ? `<div class="mini-grid">${fr.map(f => `<a href="profile.html?id=${f.id}"><img class="ava" src="${F.avatar(f)}" alt=""><span>${F.esc(F.fullName(f))}</span></a>`).join('')}</div>` : `<div class="empty">${F.ic('friends', 40)}<div>Друзей пока нет</div></div>`}</section>`;
       } else {
         const ph = photos();
         body.innerHTML = `<section class="card card-pad">${ph.length ? `<div class="pgal">${ph.map(p => `<div class="th" data-ph="${p.id}"><img src="${p.src}" alt="" loading="lazy"></div>`).join('')}</div>` : `<div class="empty">${F.ic('photo', 40)}<div>Фотографий пока нет</div></div>`}${own ? '<p style="margin:12px 0 0"><a class="btn btn-ghost btn-sm" href="photos.html">Управление фотографиями</a></p>' : ''}</section>`;
@@ -60,7 +60,6 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
     function editModal() {
       let av = u.avatar, cv = u.cover;
       F.modal({ title: 'Редактировать профиль', wide: true, body: `
-<div class="form-grid"><div class="form-row"><label>Имя</label><input class="input" id="e-first" maxlength="30" value="${F.esc(u.first)}"></div><div class="form-row"><label>Фамилия</label><input class="input" id="e-last" maxlength="30" value="${F.esc(u.last)}"></div></div>
 <div class="form-row"><label>Статус</label><input class="input" id="e-status" maxlength="100" value="${F.esc(u.status || '')}"></div>
 <div class="form-grid"><div class="form-row"><label>Дата рождения</label><input class="input" id="e-birth" type="date" value="${F.esc(u.birth || '')}"></div><div class="form-row"><label>Город</label><input class="input" id="e-city" maxlength="50" value="${F.esc(u.city || '')}"></div></div>
 <div class="form-row"><label>О себе</label><textarea class="input" id="e-about" rows="3" maxlength="500">${F.esc(u.about || '')}</textarea></div>
@@ -69,14 +68,13 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
         onOpen: m => {
           const g = s => F.$(s, m.body);
           g('#e-avb').onclick = async () => { const r = await F.pickImages(false, 400); if (r[0]) { av = r[0]; g('#e-av').src = av; } };
-          g('#e-avr').onclick = () => { av = null; g('#e-av').src = F.avatarFor(u.id + u.first); };
+          g('#e-avr').onclick = () => { av = null; g('#e-av').src = F.letterAvatar(F.fullName(u), u.id); };
           g('#e-cvb').onclick = async () => { const r = await F.pickImages(false, 1200); if (r[0]) { cv = r[0]; g('#e-cv').src = cv; } };
           g('#e-cvr').onclick = () => { cv = null; g('#e-cv').src = F.scene('sunset', 1); };
         },
         actions: [{ label: 'Отмена', cls: 'btn-ghost' }, { label: 'Сохранить', onClick: m => {
-          const g = s => F.$(s, m.body).value.trim(), first = g('#e-first'), last = g('#e-last');
-          if (!first || !last) { F.toast('Имя и фамилия обязательны'); return; }
-          Object.assign(u, { first, last, status: g('#e-status'), birth: g('#e-birth'), city: g('#e-city'), about: g('#e-about'), avatar: av, cover: cv });
+          const g = s => F.$(s, m.body).value.trim();
+          Object.assign(u, { status: g('#e-status'), birth: g('#e-birth'), city: g('#e-city'), about: g('#e-about'), avatar: av, cover: cv });
           F.save(); m.close(); F.toast('Сохраняем…'); F.flush().then(() => { location.href = 'profile.html'; });
         } }] });
     }
@@ -90,10 +88,10 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
       const th = e.target.closest('[data-ph]'); if (th) { F.photoViewer(th.dataset.ph, photos().map(p => p.id), refreshAll); return; }
       const sl = e.target.closest('[data-sl]');
       if (sl) { e.preventDefault(); const kind = sl.dataset.sl, ids = (u[kind] || []).map(F.user).filter(Boolean);
-        F.modal({ title: (kind === 'followers' ? 'Подписчики' : 'Подписки') + ' · ' + F.esc(u.first), body: ids.length ? ids.map(x => `<a class="rowitem" href="profile.html?id=${x.id}"><img class="ava ava-m" src="${F.avatar(x)}" alt=""><span class="grow"><b>${F.nameHTML(x, 14)}</b>${x.username ? `<span class="muted small">@${F.esc(x.username)}</span>` : ''}</span></a>`).join('') : '<div class="empty">Здесь пока никого нет</div>' }); return; }
+        F.modal({ title: (kind === 'followers' ? 'Подписчики' : 'Подписки') + ' · ' + F.esc(F.fullName(u)), body: ids.length ? ids.map(x => `<a class="rowitem" href="profile.html?id=${x.id}"><img class="ava ava-m" src="${F.avatar(x)}" alt=""><span class="grow"><b>${F.nameHTML(x, 14)}</b>${x.username ? `<span class="muted small">@${F.esc(x.username)}</span>` : ''}</span></a>`).join('') : '<div class="empty">Здесь пока никого нет</div>' }); return; }
       const b = e.target.closest('[data-p]'); if (!b) return; const a = b.dataset.p;
       if (a === 'edit') editModal(); else if (a === 'status') statusModal();
-      else if (a === 'follow') { if (F.follow(u.id)) F.toast('Вы подписались на ' + u.first); refreshAll(); }
+      else if (a === 'follow') { if (F.follow(u.id)) F.toast('Вы подписались на ' + F.fullName(u)); refreshAll(); }
       else if (a === 'unfollow') { F.unfollow(u.id); refreshAll(); }
       else if (a === 'add') { F.sendRequest(u.id); F.toast('Заявка отправлена'); refreshAll(); }
       else if (a === 'cancel') { F.cancelRequest(u.id); refreshAll(); }
@@ -104,6 +102,6 @@ ${showStats ? `<div class="p-stats"><div><b>${u.friends.length}</b>${F.plural(u.
     window.addEventListener('karakuli:update', () => { renderHead(); });
     renderHead(); renderTabs(); renderBody();
     if (own && q.get('edit') === '1') editModal();
-    if (own && q.get('welcome') === '1') F.toast('Добро пожаловать в Каракули! Ваша страница создана 🎉');
+    if (own && q.get('welcome') === '1') F.toast('Добро пожаловать в CrownNet! Ваша страница создана.');
   });
 })(window.Karakuli);

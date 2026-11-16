@@ -21,6 +21,7 @@
     if (t === 'messages') return r.sender_id === me || r.recipient_id === me;
     if (t === 'notifications') return r.user_id === me;
     if (t === 'bookmarks') return r.user_id === me;
+    if (t === 'support_tickets' || t === 'badge_requests') return r.user_id === me || isAdm(d);
     if (t === 'friendships') return r.status === 'accepted' || r.requester_id === me || r.addressee_id === me;
     if (t === 'posts') return !!r.community_id || canView(d, r.author_id, me);
     if (t === 'albums' || t === 'photos') return canView(d, r.owner_id, me);
@@ -45,7 +46,9 @@
       case 'comments': if (op === 'insert') return r.author_id === me;
         return r.author_id === me || (r.target_type === 'post' && (tb(d, 'posts').find(p => p.id === r.target_id) || {}).author_id === me) || (r.target_type === 'photo' && (tb(d, 'photos').find(p => p.id === r.target_id) || {}).owner_id === me);
       case 'messages': if (op === 'insert') { const pr = (tb(d, 'profiles').find(p => p.id === r.recipient_id) || {}).privacy_messages || 'all'; return r.sender_id === me && (pr === 'all' || friends(d, me, r.recipient_id)); }
-        return r.recipient_id === me;
+        return op === 'delete' ? r.sender_id === me : r.recipient_id === me;
+      case 'support_tickets': return op === 'insert' ? r.user_id === me : isAdm(d);
+      case 'badge_requests': return op === 'insert' ? r.user_id === me : isAdm(d);
       case 'notifications': return op === 'insert' ? r.user_id !== me && (r.from_id === me || !r.from_id) : r.user_id === me;
     }
     return false;
@@ -85,7 +88,7 @@
       }
       if (this.op === 'insert' || this.op === 'upsert') {
         for (const raw of this.rows) {
-          const r = Object.assign({ created_at: new Date().toISOString() }, clone(raw));
+          const r = Object.assign({ created_at: new Date().toISOString() }, t === 'badge_requests' ? { status: 'pending' } : t === 'support_tickets' ? { status: 'open' } : {}, clone(raw));
           if (!('id' in r) && !PK[t] && t !== 'bookmarks') r.id = uuid();
           if (t === 'bookmarks' && !r.id) r.id = uuid();
           if (!allow(d, 'insert', t, r, me)) return err('new row violates row-level security policy for table "' + t + '"');
@@ -117,8 +120,8 @@
 
   const mkProfile = (u) => {
     const m = u.meta || {}; let f = m.first_name || m.given_name, l = m.last_name || m.family_name;
-    if (!f) { const full = m.full_name || m.name || u.email.split('@')[0]; f = full.split(' ')[0]; l = full.split(' ').slice(1).join(' '); }
-    return { id: u.id, first_name: f || '', last_name: l || '', status: '', about: '', city: '', birth: null, avatar_url: m.avatar_url || m.picture || null, cover_url: null, privacy_profile: 'all', privacy_messages: 'all', show_online: true, username: (/^[a-z][a-z0-9_]{4,31}$/.test((m.username||'').toLowerCase()) && !tb(load(),'profiles').some(x=>x.username===(m.username||'').toLowerCase()) ? m.username.toLowerCase() : null), badge: null, is_admin: false, banned: false, ban_reason: '',
+    if (!f) { const full = m.full_name || m.name || (u.email || '').split('@')[0]; f = full.split(' ')[0]; l = full.split(' ').slice(1).join(' '); }
+    return { id: u.id, first_name: f || '', last_name: l || '', status: '', about: '', city: '', birth: null, avatar_url: m.avatar_url || m.picture || null, cover_url: null, privacy_profile: 'all', privacy_messages: 'all', show_online: true, username: (/^[a-z][a-z0-9_]{1,31}$/.test((m.username||'').toLowerCase()) && !tb(load(),'profiles').some(x=>x.username===(m.username||'').toLowerCase()) ? m.username.toLowerCase() : null), badge: null, is_admin: false, banned: false, ban_reason: '',
       settings: { theme: 'light', accent: 'blue', notify: {} }, last_seen: new Date().toISOString(), created_at: new Date().toISOString() };
   };
   const createUser = (d, email, password, meta, provider) => { const u = { id: uuid(), email, password, meta, provider }; d.users.push(u); tb(d, 'profiles').push(mkProfile(u)); return u; };
@@ -126,14 +129,22 @@
   const auth = {
     async getSession() { return { data: { session: sess(load()) } }; },
     onAuthStateChange() { return { data: { subscription: { unsubscribe() { } } } }; },
-    async signUp({ email, password, options }) {
-      const d = load(); if (d.users.some(u => u.email === email)) return err('User already registered');
+    async signUp({ email, phone, password, options }) {
+      const d = load(); if (d.users.some(u => (email && u.email === email) || (phone && u.phone === phone))) return err('User already registered');
       if (password.length < 6) return err('Password should be at least 6 characters');
-      const u = createUser(d, email, password, (options || {}).data || {}, 'email'); d.uid = u.id; if (sessionStorage.getItem('mock_multi')) sessionStorage.setItem('mock_uid', u.id); save(d);
+      const u = createUser(d, email || null, password, (options || {}).data || {}, phone ? 'phone' : 'email'); u.phone = phone || null;
+      if (localStorage.getItem('mock_confirm')) { d.pending = { id: u.id, code: '123456' }; d.uid = null; save(d); return { data: { user: { id: u.id, identities: [{}] }, session: null }, error: null }; }
+      d.uid = u.id; if (sessionStorage.getItem('mock_multi')) sessionStorage.setItem('mock_uid', u.id); save(d);
       return { data: { user: { id: u.id, identities: [{}] }, session: sess(d) }, error: null };
     },
-    async signInWithPassword({ email, password }) {
-      const d = load(), u = d.users.find(x => x.email === email && x.password === password);
+    async verifyOtp({ email, phone, token, type }) {
+      const d = load(); if (!d.pending || token !== d.pending.code) return err('Token has expired or is invalid');
+      const u = d.users.find(x => x.id === d.pending.id); if (!u || (email && u.email !== email) || (phone && u.phone !== phone)) return err('Token has expired or is invalid');
+      d.uid = u.id; d.pending = null; if (sessionStorage.getItem('mock_multi')) sessionStorage.setItem('mock_uid', u.id); save(d); return { data: { session: sess(d), user: { id: u.id } }, error: null };
+    },
+    async resend() { const d = load(); d.resent = (d.resent || 0) + 1; save(d); return { data: {}, error: null }; },
+    async signInWithPassword({ email, phone, password }) {
+      const d = load(), u = d.users.find(x => ((email && x.email === email) || (phone && x.phone === phone)) && x.password === password);
       if (!u) return err('Invalid login credentials'); d.uid = u.id; if (sessionStorage.getItem('mock_multi')) sessionStorage.setItem('mock_uid', u.id); save(d); return { data: { session: sess(d) }, error: null };
     },
     async signInWithOAuth({ provider, options }) {
@@ -153,8 +164,10 @@
     async rpc(name, a) {
       a = a || {}; const d = load(), id = d.uid, P = tb(d, 'profiles');
       if (name === 'server_time') return { data: new Date().toISOString(), error: null };
-      if (name === 'username_available') { const u = String(a.u || '').toLowerCase(); return { data: /^[a-z][a-z0-9_]{4,31}$/.test(u) && !['admin','support','karakuli'].includes(u) && !P.some(p => p.username === u), error: null }; }
+      if (name === 'username_available') { const u = String(a.u || '').toLowerCase(); return { data: /^[a-z][a-z0-9_]{1,31}$/.test(u) && !['admin','support','karakuli'].includes(u) && !P.some(p => p.username === u), error: null }; }
       if (!id) return err('not authenticated');
+      if (name === 'post_seen') { const seen = tb(d, 'post_views'); (a.ids || []).forEach(pid => { if (!seen.some(v => v.post_id === pid && v.user_id === id)) { seen.push({ post_id: pid, user_id: id }); const p = tb(d, 'posts').find(x => x.id === pid); if (p) p.views = (p.views || 0) + 1; } }); save(d); return { data: null, error: null }; }
+      if (name === 'admin_review_badge') { if (!isAdm(d)) return err('у вас нет прав на это действие'); const q = tb(d, 'badge_requests').find(x => x.id === a.req && x.status === 'pending'); if (q) { q.status = a.approve ? 'approved' : 'rejected'; if (a.approve) { const t = P.find(x => x.id === q.user_id); if (t) t.badge = q.badge; } save(d); } return { data: null, error: null }; }
       if (name === 'delete_my_account') { d.users = d.users.filter(u => u.id !== id); d.uid = null; Object.keys(d.t).forEach(t => { d.t[t] = d.t[t].filter(r => !Object.values(r).includes(id)); }); save(d); return { data: null, error: null }; }
       if (name.startsWith('admin_')) {
         if (!isAdm(d)) return err('forbidden');

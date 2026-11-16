@@ -1,4 +1,4 @@
-/* Каракули — Pixel Battle: игровой экран на весь браузер, тёмная неоновая и светлая темы */
+/* CrownNet — Pixel Battle: игровой экран на весь браузер, тёмная неоновая и светлая темы */
 body.pb{--b-bg:#070a18;--b-panel:#0e1330;--b-line:#27306a;--b-ink:#eaf0ff;--b-mut:#94a0d6;--b-neon:#6d7dff;--b-glow:0 0 18px rgba(109,125,255,.45);
   margin:0;height:100vh;height:100dvh;overflow:hidden;background:var(--b-bg);color:var(--b-ink);display:flex;flex-direction:column;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
 body.pb[data-pbtheme="light"]{--b-bg:#e8ecf8;--b-panel:#ffffff;--b-line:#cfd6ee;--b-ink:#1b2340;--b-mut:#5e6a98;--b-neon:#4f6df5;--b-glow:0 2px 10px rgba(79,109,245,.25)}

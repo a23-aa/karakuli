@@ -1,4 +1,4 @@
-/* Каракули — друзья: список, онлайн, входящие/исходящие заявки, поиск людей. */
+/* CrownNet — друзья: список, онлайн, входящие/исходящие заявки, поиск людей. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'friends') return;
@@ -57,10 +57,10 @@
       const t = e.target.closest('[data-t]'); if (t) { tab = t.dataset.t; render(); return; }
       const ch = e.target.closest('[data-chip]'); if (ch) { onlyOnline = !onlyOnline; render(); return; }
       const b = e.target.closest('[data-f]'); if (!b) return; const id = b.dataset.id, u = F.user(id), a = b.dataset.f;
-      if (a === 'follow') { F.follow(id); F.toast('Вы подписались на ' + u.first); }
+      if (a === 'follow') { F.follow(id); F.toast('Вы подписались на ' + F.fullName(u)); }
       else if (a === 'unfollow') F.unfollow(id);
       else if (a === 'add') { F.sendRequest(id); F.toast('Заявка отправлена'); }
-      else if (a === 'accept') { F.acceptRequest(id); F.toast('Теперь вы друзья с ' + u.first); }
+      else if (a === 'accept') { F.acceptRequest(id); F.toast('Теперь вы друзья с ' + F.fullName(u)); }
       else if (a === 'decline') F.declineRequest(id);
       else if (a === 'cancel') F.cancelRequest(id);
       else if (a === 'remove') { F.confirm('Удалить ' + F.fullName(u) + ' из друзей?', 'Удалить').then(ok => { if (ok) { F.removeFriend(id); render(); } }); return; }

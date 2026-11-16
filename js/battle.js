@@ -1,4 +1,4 @@
-/* Каракули — Pixel Battle: общее поле 1000×1000, две команды, кулдаун на сервере.
+/* CrownNet — Pixel Battle: общее поле 1000×1000, две команды, кулдаун на сервере.
    Все записи идут через функции pb_* в базе; здесь только рисование, опрос раз в ~2 с и интерфейс. */
 (function (F) {
   'use strict';
@@ -145,11 +145,11 @@ ${tab === 'teams' ? `${mine()}<div class="mode"><b>${info[0]}</b><p>${info[1]}</
       const r = result || {}, w = r.winner, s = r.s || (scores && scores.s) || [0, 0];
       if (solo()) { const top = (scores && scores.top) || [], won = r.winner_user === F.sessionId();
         o.hidden = false; o.innerHTML = `<div class="box"><div class="tag">Раунд закончен</div><h2>${r.winner_name ? 'Победил ' + esc(r.winner_name) : 'Ничья!'}</h2>${r.winner_owned ? `<div class="res"><span>${r.winner_owned} пикселей на поле</span></div>` : ''}
-<p>${won ? 'Это вы! 🎉' : `У вас на поле пикселей: ${owned}.`}</p>${top.length ? `<div class="tops2">${top.map((u, i) => `<div>${i + 1}. ${esc(u.name || 'Игрок')} — <b>${u.owned}</b></div>`).join('')}</div>` : ''}<div id="pb-next" class="muted small"></div>
+<p>${won ? 'Это вы!' : `У вас на поле пикселей: ${owned}.`}</p>${top.length ? `<div class="tops2">${top.map((u, i) => `<div>${i + 1}. ${esc(u.name || 'Игрок')} — <b>${u.owned}</b></div>`).join('')}</div>` : ''}<div id="pb-next" class="muted small"></div>
 <div class="btns"><a class="btn" href="events.html">К ивентам</a><button class="btn btn-ghost" data-x="stay">Посмотреть поле</button></div></div>`; nextRound(); return; }
       o.hidden = false; o.innerHTML = `<div class="box"><div class="tag">Раунд закончен</div><h2 style="color:${w == null ? 'inherit' : TEAMS[w].c}">${w == null ? 'Ничья!' : 'Победа — «' + TEAMS[w].name + '»'}</h2>
 <div class="res"><span style="color:${TEAMS[0].c}">${TEAMS[0].name}: <b>${s[0]}</b></span><span style="color:${TEAMS[1].c}">${TEAMS[1].name}: <b>${s[1]}</b></span></div>
-${team !== null ? `<p>${w === team ? 'Ваша команда победила 🎉' : w == null ? 'Силы равны.' : 'В этот раз не повезло.'} Вы поставили ${placed} пикс.</p>` : ''}<div id="pb-next" class="muted small"></div>
+${team !== null ? `<p>${w === team ? 'Ваша команда победила' : w == null ? 'Силы равны.' : 'В этот раз не повезло.'} Вы поставили ${placed} пикс.</p>` : ''}<div id="pb-next" class="muted small"></div>
 <div class="btns"><a class="btn" href="events.html">К ивентам</a><button class="btn btn-ghost" data-x="stay">Посмотреть поле</button></div></div>`;
       nextRound();
     }

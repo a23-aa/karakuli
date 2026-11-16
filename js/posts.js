@@ -1,11 +1,11 @@
 /* ===================================================================
-   Каракули — публикации: карточки, лайки, комментарии, репосты, закладки,
+   CrownNet — публикации: карточки, лайки, комментарии, репосты, закладки,
    форма создания записи. Страницы: index.html (главная), news.html.
    =================================================================== */
 (function (F) {
   'use strict';
   const openC = new Set();
-  const NL = s => F.esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s>])#([\p{L}\p{N}_]{2,30})/gu, '$1<a class="tag" href="news.html?tag=$2">#$2</a>').replace(/(^|[\s>])@([A-Za-z0-9_]{3,30})/g, '$1<a class="mention" href="profile.html?u=$2">@$2</a>').replace(/\n/g, '<br>');
+  const NL = s => F.esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s>])#([\p{L}\p{N}_]{2,30})/gu, '$1<a class="htag" href="news.html?tag=$2">#$2</a>').replace(/(^|[\s>])@([A-Za-z0-9_]{3,30})/g, '$1<a class="mention" href="profile.html?u=$2">@$2</a>').replace(/\n/g, '<br>');
   const getPost = id => F.db().posts.find(p => p.id === id);
 
   function authorInfo(p) {
@@ -56,11 +56,32 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
 <button class="act${liked ? ' liked' : ''}" data-act="like">${F.ic('heart', 18)}<span>${p.likes.length}</span></button>
 <button class="act" data-act="comments">${F.ic('comment', 18)}<span>${p.comments.length}</span></button>
 <button class="act" data-act="repost" title="Поделиться">${F.ic('repost', 18)}<span>${reposts || ''}</span></button>
-<button class="act sp${saved ? ' saved' : ''}" data-act="bookmark" title="В закладки" aria-label="В закладки">${F.ic('bookmark', 18)}</button></div>${comments}</article>`;
+<button class="act sp${saved ? ' saved' : ''}" data-act="bookmark" title="В закладки" aria-label="В закладки">${F.ic('bookmark', 18)}</button><span class="views" title="Просмотры" aria-label="Просмотры">${F.ic('eye', 18)}<span data-v="${p.id}">${p.views || 0}</span></span></div>${comments}</article>`;
   }
 
   F.posts = {
     cardHTML,
+    /** Просмотры: запись, которая была видна на экране, считается один раз на человека. */
+    watchViews(el) {
+      if (!('IntersectionObserver' in window) || !F.sb) return;
+      const me = F.me(); if (!me) return;
+      let done = {}; try { done = JSON.parse(localStorage.getItem('cn-viewed') || '{}'); } catch (e) { }
+      if (!el._vq) el._vq = new Set();
+      const flush = () => {
+        const ids = [...el._vq]; el._vq.clear(); if (!ids.length) return;
+        Promise.resolve(F.sb.rpc('post_seen', { ids })).then(() => { }, () => { });
+        ids.forEach(id => { done[id] = 1; const p = F.db().posts.find(x => x.id === id); if (p) { p.views = (p.views || 0) + 1; const sp = el.querySelector('[data-v="' + id + '"]'); if (sp) sp.textContent = p.views; } });
+        try { const k = Object.keys(done); if (k.length > 3000) k.slice(0, 1000).forEach(x => delete done[x]); localStorage.setItem('cn-viewed', JSON.stringify(done)); } catch (e) { }
+      };
+      if (el._io) el._io.disconnect();
+      let t = null;
+      el._io = new IntersectionObserver(es => es.forEach(en => {
+        if (!en.isIntersecting) return; const a = en.target, id = a.dataset.id; el._io.unobserve(a);
+        const p = F.db().posts.find(x => x.id === id); const cur = F.me(); if (!p || done[id] || !cur || p.authorId === cur.id) return;
+        el._vq.add(id); clearTimeout(t); t = setTimeout(flush, 1500);
+      }), { threshold: 0.5 });
+      el.querySelectorAll('.post[data-id]').forEach(a => el._io.observe(a));
+    },
     /** Рисует список записей в el. getList — функция, возвращающая актуальный массив. */
     mount(el, getList, opts) {
       opts = opts || {};
@@ -68,6 +89,7 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       const render = el._render = () => {
         const list = el._getList();
         el.innerHTML = list.length ? list.map(cardHTML).join('') : `<div class="card empty">${F.ic('news', 40)}<div>${F.esc(el._opts.empty || 'Здесь пока нет записей')}</div></div>`;
+        F.posts.watchViews(el);
         if (el._opts.recs) F.posts.markSeen(el); else if (F.posts.why) F.posts.why = null;
       };
       render();
@@ -103,7 +125,7 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
           if (!text && !imgs.length) { F.toast('Напишите что-нибудь или добавьте фото или видео'); return; }
           const d = F.db();
           const p = { id: F.uid('p'), authorId: me.id, communityId: o.communityId || null, text, photos: imgs.slice(), ts: Date.now(), likes: [], comments: [], repostOf: null };
-          d.posts.unshift(p);
+          d.posts.unshift(p); F.mentions(text, me.id, 'index.html#post-' + p.id);
           const stills = imgs.filter(x => !F.isVideoUrl(x));
           if (!p.communityId && stills.length) { const al = F.wallAlbum(me.id); stills.forEach(s => d.photos.unshift({ id: F.uid('ph'), ownerId: me.id, albumId: al.id, src: s, ts: Date.now(), likes: [], comments: [] })); }
           if (!F.save()) { F.reload(); return; }
@@ -224,7 +246,7 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       e.preventDefault();
       const art = f.closest('.post'), p = getPost(art.dataset.id), me = F.me(), t = f.t.value.trim(); if (!p || !t) return;
       p.comments.push({ id: F.uid('c'), authorId: me.id, text: t, ts: Date.now() });
-      F.notify(p.authorId, 'comment', me.id, { link: 'index.html#post-' + p.id });
+      F.notify(p.authorId, 'comment', me.id, { link: 'index.html#post-' + p.id }); F.mentions(t, me.id, 'index.html#post-' + p.id, [p.authorId]);
       F.save(); rr();
       const inp = F.$('#post-' + p.id + ' .comment-form input'); if (inp) inp.focus();
     });
@@ -255,7 +277,7 @@ ${p.text ? `<div class="post-text">${NL(p.text)}</div>` : ''}${p.repostOf ? embe
       const trending = (() => { const cnt = {}, since = Date.now() - 7 * 864e5; F.db().posts.forEach(p => { if (p.ts > since) new Set(tagsOf(p.text)).forEach(t => { cnt[t] = (cnt[t] || 0) + 1; }); }); return Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 8); })();
       c.innerHTML = `<div class="toolbar"><h1 class="page-title">${tag ? '#' + F.esc(tag) : 'Новости'}</h1><select class="input" id="srt" style="width:auto"><option value="new">Сначала новые</option><option value="popular">Сначала популярные</option></select></div>
 <div class="tabs" id="tb"><button class="tab active" data-k="recs">Рекомендации</button><button class="tab" data-k="all">Все записи</button><button class="tab" data-k="friends">Друзья</button><button class="tab" data-k="follows">Подписки</button><button class="tab" data-k="communities">Сообщества</button></div>
-${trending.length && !tag ? `<div class="card card-pad" style="margin-bottom:14px"><b style="display:block;margin-bottom:8px">🔥 Сейчас обсуждают</b><div class="trend">${trending.map(([t, n]) => `<a href="news.html?tag=${encodeURIComponent(t)}">#${F.esc(t)} <span class="muted">${n}</span></a>`).join('')}</div></div>` : ''}${tag ? '<p><a href="news.html">← Все новости</a></p>' : ''}
+${trending.length && !tag ? `<div class="card card-pad" style="margin-bottom:14px"><b style="display:block;margin-bottom:8px">Сейчас обсуждают</b><div class="trend">${trending.map(([t, n]) => `<a href="news.html?tag=${encodeURIComponent(t)}">#${F.esc(t)} <span class="muted">${n}</span></a>`).join('')}</div></div>` : ''}${tag ? '<p><a href="news.html">← Все новости</a></p>' : ''}
 <div id="feed" style="display:flex;flex-direction:column;gap:14px"></div>`;
       const feed = F.$('#feed', c), empties = { recs: 'Пока нечего рекомендовать', all: 'Записей пока нет', friends: 'У ваших друзей пока нет записей', follows: 'Подпишитесь на людей, чтобы видеть их записи здесь', communities: 'Подпишитесь на сообщества, чтобы видеть их записи' };
       const draw = () => { F.$('#srt', c).hidden = kind === 'recs'; F.posts.mount(feed, () => tag ? F.posts.feed('all', sort).filter(p => tagsOf(p.text).includes(tag)) : F.posts.feed(kind, sort), { empty: tag ? 'Записей с этим тегом пока нет' : empties[kind], recs: kind === 'recs' && !tag }); };

@@ -1,4 +1,4 @@
-/* Каракули — настройки: основные, аккаунт, приватность, уведомления, безопасность, внешний вид. */
+/* CrownNet — настройки: основные, аккаунт, приватность, уведомления, безопасность, внешний вид. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'settings') return;
@@ -15,23 +15,21 @@
       nav.innerHTML = T.map(t => `<button class="${tab === t[0] ? 'active' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
       if (tab === 'general') {
         box.innerHTML = `<h2 class="sec-title">Основные настройки</h2>
-<div class="form-grid"><div class="form-row"><label>Имя</label><input class="input" id="g-f" aria-label="Имя" maxlength="30" value="${F.esc(me.first)}"></div><div class="form-row"><label>Фамилия</label><input class="input" id="g-l" aria-label="Фамилия" maxlength="30" value="${F.esc(me.last)}"></div></div>
-<div class="form-row"><label>Юзернейм</label><input class="input" id="g-u" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" value="${F.esc(me.username || '')}" placeholder="например, ivan_petrov"><div class="form-msg" id="g-um" style="min-height:18px;margin-top:4px"></div></div>
+<div class="form-row"><label>Никнейм</label><input class="input" id="g-u" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" value="${F.esc(me.username || '')}" placeholder="например, ivan_petrov"><div class="form-msg" id="g-um" style="min-height:18px;margin-top:4px"></div></div>
 <div class="form-grid"><div class="form-row"><label>Дата рождения</label><input class="input" id="g-b" aria-label="День рождения" type="date" value="${F.esc(me.birth || '')}"></div><div class="form-row"><label>Город</label><input class="input" id="g-c" aria-label="Город" maxlength="50" value="${F.esc(me.city || '')}"></div></div>
 <div class="form-row"><label>Аватар</label><div style="display:flex;align-items:center;gap:12px"><img class="ava ava-l" id="g-av" src="${F.avatar(me)}" alt=""><button class="btn btn-ghost btn-sm" id="g-avb">Загрузить</button><button class="link-btn small" id="g-avr">Сбросить</button></div></div>
 <div class="form-msg" id="g-m"></div><button class="btn" id="g-save">Сохранить изменения</button>`;
         let av = me.avatar;
         F.$('#g-avb', box).onclick = async () => { const r = await F.pickImages(false, 400); if (r[0]) { av = r[0]; F.$('#g-av', box).src = av; } };
-        F.$('#g-avr', box).onclick = () => { av = null; F.$('#g-av', box).src = F.avatarFor(me.id + me.first); };
+        F.$('#g-avr', box).onclick = () => { av = null; F.$('#g-av', box).src = F.letterAvatar(F.fullName(me), me.id); };
         let ut = null; const gu = F.$('#g-u', box), gum = F.$('#g-um', box);
         gu.addEventListener('input', () => { clearTimeout(ut); const v = gu.value.trim().toLowerCase(); if (!v || v === me.username) { gum.textContent = ''; return; }
           ut = setTimeout(async () => { const r = await F.checkUsername(v); msg(gum, r.text, r.ok); }, 350); });
         F.$('#g-save', box).onclick = async () => {
-          const f = F.$('#g-f', box).value.trim(), l = F.$('#g-l', box).value.trim(), m = F.$('#g-m', box);
-          if (!f || !l) { msg(m, 'Имя и фамилия обязательны'); return; }
-          const nu = gu.value.trim().toLowerCase();
-          if (nu && nu !== me.username) { const r = await F.setUsername(nu); if (!r.ok) { msg(gum, r.text); msg(m, 'Юзернейм не сохранён'); return; } gum.textContent = ''; }
-          Object.assign(me, { first: f, last: l, birth: F.$('#g-b', box).value, city: F.$('#g-c', box).value.trim(), avatar: av });
+          const m = F.$('#g-m', box), nu = gu.value.trim().toLowerCase();
+          if (!nu && !me.username) { msg(m, 'Придумайте никнейм'); return; }
+          if (nu && nu !== me.username) { const r = await F.setUsername(nu); if (!r.ok) { msg(gum, r.text); msg(m, 'Никнейм не сохранён'); return; } gum.textContent = ''; }
+          Object.assign(me, { first: me.username || me.first, last: '', birth: F.$('#g-b', box).value, city: F.$('#g-c', box).value.trim(), avatar: av });
           if (F.save()) { msg(m, 'Изменения сохранены', true); F.$('.top-ava img').src = F.avatar(me); }
         };
       } else if (tab === 'account') {
@@ -62,10 +60,11 @@ ${row('online', 'privacy', 'Показывать, что я онлайн', 'Ес
         F.$('#p-pr', box).onchange = e => { p.profile = e.target.value; F.save(); F.toast('Сохранено'); };
         F.$('#p-ms', box).onchange = e => { p.messages = e.target.value; F.save(); F.toast('Сохранено'); };
       } else if (tab === 'notify') {
-        box.innerHTML = `<h2 class="sec-title">Уведомления</h2><div class="card card-pad" id="pushbox" style="margin-bottom:12px"><b>Уведомления на этом устройстве</b><div class="muted small" id="push-st">Проверяем…</div><div style="margin-top:8px"><button class="btn btn-sm" id="push-btn" hidden></button></div></div>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('follow', 'notify', 'Новые подписчики')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}`;
+        box.innerHTML = `<h2 class="sec-title">Уведомления</h2><div class="card card-pad" id="pushbox" style="margin-bottom:12px"><b>Уведомления на этом устройстве</b><div class="muted small" id="push-st">Проверяем…</div><div style="margin-top:8px"><button class="btn btn-sm" id="push-btn" hidden></button></div></div>${row('like', 'notify', 'Лайки')}${row('comment', 'notify', 'Комментарии')}${row('repost', 'notify', 'Репосты')}${row('friend_request', 'notify', 'Заявки в друзья')}${row('follow', 'notify', 'Новые подписчики')}${row('friend_accept', 'notify', 'Принятые заявки')}${row('message', 'notify', 'Новые сообщения')}${row('community_post', 'notify', 'Записи сообществ')}${row('mention', 'notify', 'Упоминания')}<div class="switch-row"><div><b>Звуки уведомлений</b></div><label class="switch"><input type="checkbox" id="snd-t"${F.sound && F.sound.enabled() ? ' checked' : ''}><span></span></label></div>`;
+        const snd = F.$('#snd-t', box); if (snd) snd.onchange = () => F.sound && F.sound.set(snd.checked);
         (async () => {
           const st = F.push ? await F.push.status() : 'unsupported', t = F.$('#push-st', box), bt = F.$('#push-btn', box); if (!t) return;
-          const txt = { on: 'Включены: сообщения, звонки и ивенты придут, даже когда сайт закрыт.', off: 'Выключены. Включите, чтобы получать сообщения, звонки и начало ивентов, когда сайт закрыт.', denied: 'Запрещены в настройках браузера. Разрешите уведомления для этого сайта и обновите страницу.', unsupported: 'Этот браузер не поддерживает push-уведомления.', install: 'На iPhone/iPad: нажмите «Поделиться» → «На экран “Домой”», откройте Каракули с иконки и вернитесь сюда.' };
+          const txt = { on: 'Включены.', off: 'Выключены.', denied: 'Запрещены в настройках браузера.', unsupported: 'Этот браузер не поддерживает push-уведомления.', install: 'Доступны в установленном приложении.' };
           t.textContent = txt[st]; bt.hidden = st !== 'on' && st !== 'off'; bt.textContent = st === 'on' ? 'Выключить' : 'Включить';
           bt.onclick = async () => { bt.disabled = true; try { if (st === 'on') await F.push.disable(); else await F.push.enable(); F.toast(st === 'on' ? 'Выключено' : 'Включено'); } catch (e) { F.toast(String(e.message || e)); } draw(); };
         })();

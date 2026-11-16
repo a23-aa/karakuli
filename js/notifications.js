@@ -1,4 +1,4 @@
-/* Каракули — уведомления: список, отметка прочитанных, переход к источнику. */
+/* CrownNet — уведомления: список, отметка прочитанных, переход к источнику. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'notifications') return;
@@ -32,5 +32,7 @@
     });
     window.addEventListener('karakuli:update', render);
     render();
+    // всё, что человек увидел на этой странице, становится прочитанным (подсветка «новое» остаётся до выхода)
+    setTimeout(() => { const un = mine().filter(n => !n.read); if (un.length) { un.forEach(n => { n.read = true; }); F.save(); F.badges(); } }, 1800);
   });
 })(window.Karakuli);

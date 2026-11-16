@@ -1,5 +1,6 @@
-/* Каракули — service worker: принимает push-уведомления, когда сайт закрыт, и открывает нужную страницу по нажатию. */
+/* CrownNet — service worker: принимает push-уведомления, когда сайт закрыт, и открывает нужную страницу по нажатию. */
 self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('fetch', () => { /* нужен браузеру, чтобы разрешить установку приложения */ });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', e => {
@@ -9,7 +10,7 @@ self.addEventListener('push', e => {
     // если сайт сейчас открыт и виден — человек и так всё видит внутри страницы
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (wins.some(w => w.visibilityState === 'visible' && w.focused) && d.tag !== 'call') return;
-    await self.registration.showNotification(d.title || 'Каракули', {
+    await self.registration.showNotification(d.title || 'CrownNet', {
       body: d.body || '', icon: 'assets/icons/icon-192.png', badge: 'assets/icons/badge.png',
       tag: d.tag || undefined, renotify: !!d.tag, requireInteraction: d.tag === 'call',
       data: { url: d.url || 'index.html' }

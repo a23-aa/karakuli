@@ -1,4 +1,4 @@
-/* Каракули — личные сообщения: диалоги, история, отправка текста и фото.
+/* CrownNet — личные сообщения: диалоги, история, отправка текста и фото.
    В реальном проекте обновление в реальном времени делается через WebSocket (см. событие karakuli:update). */
 (function (F) {
   'use strict';
@@ -39,13 +39,13 @@
       msgs.forEach(m => {
         const day = F.fmtDate(m.ts); if (day !== last) { html += `<div class="day">${day === F.fmtDate(Date.now()) ? 'Сегодня' : day}</div>`; last = day; }
         if (m.kind === 'call') { html += `<div class="mcall">${F.ic(m.text && /Пропущ|Отклон/.test(m.text) ? 'hangup' : 'phone', 16)} ${F.esc(m.text || 'Звонок')} · ${F.fmtTime(m.ts)}</div>`; return; }
-        html += `<div class="msg${m.from === me.id ? ' mine' : ''}${m.kind === 'circle' ? ' is-circle' : ''}${m.kind === 'voice' ? ' is-voice' : ''}">${F.chatmedia.bubble(m)}${m.text ? F.esc(m.text).replace(/\n/g, '<br>') : ''}<div class="mt">${F.fmtTime(m.ts)}</div></div>`;
+        html += `<div class="msg${m.from === me.id ? ' mine' : ''}${m.kind === 'circle' ? ' is-circle' : ''}${m.kind === 'voice' ? ' is-voice' : ''}">${m.from === me.id ? `<button class="msg-del" data-delmsg="${m.id}" title="Удалить сообщение" aria-label="Удалить сообщение" type="button">${F.ic('trash', 15)}</button>` : ''}${F.chatmedia.bubble(m)}${m.text ? F.esc(m.text).replace(/\n/g, '<br>') : ''}<div class="mt">${F.fmtTime(m.ts)}</div></div>`;
       });
-      if (keepInput && F.$('#msgs', pane)) { const box = F.$('#msgs', pane), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80; if (box._html === html) return; box._html = html; box.innerHTML = html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'; if (atEnd) box.scrollTop = box.scrollHeight; F.chatmedia.sync(box); return; }
+      if (keepInput && F.$('#msgs', pane)) { const box = F.$('#msgs', pane), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80; if (box._html === html) return; box._html = html; box.innerHTML = html || '<div class="chat-empty">Напишите первое сообщение</div>'; if (atEnd) box.scrollTop = box.scrollHeight; F.chatmedia.sync(box); return; }
       pane.innerHTML = `<div class="chat-head"><button class="icon-btn chat-back" id="back" aria-label="Назад">${F.ic('back')}</button><a href="profile.html?id=${u.id}"><img class="ava ava-m" src="${F.avatar(u)}" alt=""></a>
 <div class="grow"><a href="profile.html?id=${u.id}" style="color:var(--ink);font-weight:800">${F.nameHTML(u, 15)}</a><div>${F.isOnline(u) ? '<span class="on-text">online</span>' : '<span class="muted small">был(а) в сети недавно</span>'}</div></div>
 <button class="icon-btn" data-call="audio" title="Позвонить" aria-label="Позвонить">${F.ic('phone', 20)}</button><button class="icon-btn" data-call="video" title="Видеозвонок" aria-label="Видеозвонок">${F.ic('video', 22)}</button></div>
-<div class="msgs" id="msgs">${html || '<div class="chat-empty">Напишите первое сообщение 👋</div>'}</div>
+<div class="msgs" id="msgs">${html || '<div class="chat-empty">Напишите первое сообщение</div>'}</div>
 <div class="chat-attach" id="att" hidden></div>
 <div class="chat-input" id="cin"><span class="menu-wrap"><button class="icon-btn" data-menu title="Прикрепить" aria-label="Прикрепить" aria-haspopup="true">${F.ic('clip', 22)}</button><span class="menu-pop" role="menu"><button id="pick">${F.ic('photo', 18)} Фото</button><button data-att="video">${F.ic('video', 18)} Видео</button><button data-att="file">${F.ic('file', 18)} Файл</button><button data-att="circle">${F.ic('camflip', 18)} Кружок</button></span></span><textarea class="input" id="mt" rows="1" maxlength="2000" placeholder="Написать сообщение…"></textarea><button class="icon-btn" id="mic" title="Голосовое сообщение" aria-label="Голосовое сообщение">${F.ic('mic', 22)}</button><button class="btn" id="send" aria-label="Отправить">${F.ic('send', 18)}</button></div>`;
       const box = F.$('#msgs', pane); box._html = html; box.scrollTop = box.scrollHeight; drawAttach(); F.chatmedia.bind(box); F.chatmedia.sync(box);
@@ -65,6 +65,14 @@
     function open(id) { cur = id; attach = null; chat.classList.add('open'); renderList(); renderPane(); history.replaceState(null, '', 'messages.html?u=' + id); }
 
     c.addEventListener('click', e => {
+      const dm = e.target.closest('[data-delmsg]');
+      if (dm) {
+        const id = dm.dataset.delmsg;
+        F.modal({ title: 'Удалить сообщение?', body: '<p style="margin:0">Сообщение исчезнет у вас и у собеседника.</p>', actions: [{ label: 'Отмена', cls: 'btn-ghost' }, { label: 'Удалить', onClick: m => {
+          const arr = Object.values(F.db().messages).find(a => a.some(x => x.id === id)); if (arr) arr.splice(arr.findIndex(x => x.id === id), 1);
+          if (F.save()) { m.close(); renderPane(true); renderList(); } } }] });
+        return;
+      }
       const f = e.target.closest('[data-f]'); if (f) { filter = f.dataset.f; F.$$('.chat-list-top .tab', c).forEach(t => t.classList.toggle('active', t === f)); renderList(); return; }
       const d = e.target.closest('[data-u]'); if (d) { open(d.dataset.u); return; }
       if (e.target.closest('#back')) { chat.classList.remove('open'); cur = null; renderList(); renderPane(); history.replaceState(null, '', 'messages.html'); return; }

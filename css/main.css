@@ -1,4 +1,4 @@
-/* ============ Каракули — дизайн-система: переменные, база, раскладка ============ */
+/* ============ CrownNet — дизайн-система: переменные, база, раскладка ============ */
 :root{
   --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --bg1:#eef1f8;--bg2:#eef1f8;
@@ -12,13 +12,16 @@
 }
 [data-accent="lavender"]{--accent:#8b6cf0;--accent-d:#7150dc;--accent2:#d5c9fb}
 [data-accent="mint"]{--accent:#14a98a;--accent-d:#0c8d72;--accent2:#b7ebdd}
+[data-accent="gold"]{--accent:#d99a1b;--accent-d:#b57d0a;--accent2:#f5dfa5}
 [data-theme="dark"]{
-  --bg1:#0f1329;--bg2:#0f1329;--card:#181e3b;--soft:#212850;--soft2:#2b3463;
-  --ink:#e9ecfb;--muted:#9aa4d0;--line:#2c3562;
-  --shadow:0 1px 2px rgba(0,0,0,.35);--glow:0 6px 20px rgba(0,0,0,.3);
-  --accent2:#3a4584;
+  --bg1:#09090c;--bg2:#09090c;--card:#131318;--soft:#1b1b22;--soft2:#26262f;
+  --ink:#f3efe4;--muted:#a39d8c;--line:#2e2a1d;
+  --shadow:0 1px 2px rgba(0,0,0,.5);--glow:0 6px 24px rgba(0,0,0,.45);
+  --accent2:#4a3a12;
 }
-[data-theme="dark"][data-accent="blue"]{--accent:#6f88ff}
+[data-theme="dark"][data-accent="blue"],[data-theme="dark"][data-accent="gold"]{--accent:#f2b83a;--accent-d:#f7cd6a;--accent2:#4a3a12}
+[data-theme="dark"] .card,[data-theme="dark"] .topbar{border-color:rgba(242,184,58,.22)}
+[data-theme="dark"] .btn:not(.btn-ghost){color:#1a1200}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:var(--font);color:var(--ink);font-size:15px;line-height:1.5;background:var(--bg1);min-height:100vh;overflow-x:hidden}
@@ -37,7 +40,9 @@ button{font-family:inherit;color:inherit}
   padding:0 max(16px,calc((100vw - 1200px)/2 + 16px));background:var(--card);border-bottom:1px solid var(--line)}
 .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:22px;color:var(--ink);letter-spacing:-.3px}
 .logo:hover{text-decoration:none}
-.logo svg{color:var(--accent);fill:var(--accent2)}
+.logo .logo-t b{color:#d99a1b}
+.logo svg{filter:drop-shadow(0 2px 6px rgba(217,154,27,.35));transition:transform .3s}
+.logo:hover svg{transform:rotate(-8deg) scale(1.08)}
 .search{position:relative;flex:1;max-width:440px}
 .search input{width:100%;height:38px;padding:0 14px 0 38px;border-radius:10px;border:1px solid transparent;background:var(--soft);color:var(--ink);font:inherit;font-size:14.5px;outline:none}
 .search input:focus{border-color:var(--accent);background:var(--card)}

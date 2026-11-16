@@ -1,4 +1,4 @@
-/* Каракули — push-уведомления: приходят на телефон/компьютер, даже когда сайт закрыт.
+/* CrownNet — push-уведомления: приходят на телефон/компьютер, даже когда сайт закрыт.
    Подписка хранится в базе (таблица push_subscriptions), отправляет Edge Function «push». */
 (function (F) {
   'use strict';
@@ -48,7 +48,7 @@
       if (st !== 'off' && st !== 'install') return;
       const el = document.createElement('div'); el.id = 'push-banner'; el.className = 'card card-pad push-banner';
       el.innerHTML = st === 'install'
-        ? `<div class="grow"><b>Уведомления на iPhone</b><div class="muted small">Нажмите «Поделиться» → «На экран “Домой”», откройте Каракули с иконки и включите уведомления в настройках.</div></div><button class="btn btn-ghost btn-sm" data-pb="skip">Понятно</button>`
+        ? `<div class="grow"><b>Уведомления на iPhone</b><div class="muted small">Нажмите «Поделиться» → «На экран “Домой”», откройте CrownNet с иконки и включите уведомления в настройках.</div></div><button class="btn btn-ghost btn-sm" data-pb="skip">Понятно</button>`
         : `<div class="grow"><b>Получать уведомления?</b><div class="muted small">Сообщения, звонки и начало ивентов будут приходить на это устройство, даже когда сайт закрыт.</div></div><button class="btn btn-sm" data-pb="on">Включить</button><button class="btn btn-ghost btn-sm" data-pb="skip">Не сейчас</button>`;
       host.parentNode.insertBefore(el, host);
       el.addEventListener('click', async e => {
@@ -58,5 +58,5 @@
       });
     });
   }
-  F.push = { ok, status, enable, disable, init() { sync(); if (document.body.dataset.page === 'index') banner(); } };
+  F.push = { ok, status, enable, disable, init() { sync(); } };
 })(window.Karakuli);

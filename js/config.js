@@ -1,4 +1,4 @@
-/* Каракули — настройки подключения к Supabase.
+/* CrownNet — настройки подключения к Supabase.
    URL и publishable-ключ можно хранить в открытом виде: защита данных держится
    на правилах доступа (Row Level Security) из supabase/schema.sql.
    НИКОГДА не вставляйте сюда secret / service_role ключ.

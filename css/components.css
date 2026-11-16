@@ -1,4 +1,4 @@
-/* ============ Каракули — компоненты ============ */
+/* ============ CrownNet — компоненты ============ */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);position:relative}
 .card-pad{padding:16px}
 .sec-title{font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -374,10 +374,6 @@
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 
 /* ===== приятные мелочи ===== */
-.emo-btn{font-size:20px;flex:none}
-.emo-pop{position:fixed;z-index:300;width:288px;max-width:calc(100vw - 16px);display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);animation:popin .14s ease-out}
-.emo-pop button{background:none;border:0;font-size:22px;height:34px;border-radius:8px;cursor:pointer}
-.emo-pop button:hover{background:var(--hover,rgba(0,0,0,.06))}
 .to-top{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:44px;height:44px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:22px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:90;animation:popin .2s ease-out}
 .to-top[hidden]{display:none}
 .act.pop .ic{animation:likepop .45s ease-out}
@@ -385,9 +381,43 @@
 @keyframes popin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 .post,.card{animation:cardin .28s ease-out both}
 @keyframes cardin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.tag,.mention{color:var(--accent);font-weight:600}
-.tag:hover,.mention:hover{text-decoration:underline}
+.htag,.mention{color:var(--accent);font-weight:600}
+.htag:hover,.mention:hover{text-decoration:underline}
 .trend{display:flex;flex-wrap:wrap;gap:6px}
 .trend a{padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:600;font-size:13px}
 .trend a:hover{text-decoration:none;background:color-mix(in srgb,var(--accent) 22%,transparent)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.views{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.msg{position:relative}
+.msg-del{position:absolute;top:4px;left:-34px;width:28px;height:28px;border-radius:50%;border:0;background:var(--soft);color:var(--muted);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s,transform .15s}
+.msg.mine:hover .msg-del,.msg-del:focus-visible{opacity:1}
+.msg-del:hover{color:var(--danger);transform:scale(1.1)}
+@media (hover:none){.msg-del{opacity:.7;left:-30px}}
+
+/* плашки новых уведомлений (компьютер): справа внизу, небольшие */
+.ntoasts{position:fixed;right:18px;bottom:18px;z-index:400;display:flex;flex-direction:column;gap:8px;width:300px}
+.ntoast{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.22);animation:ntin .28s ease-out;transition:opacity .3s,transform .3s}
+.ntoast:hover{text-decoration:none;transform:translateY(-2px)}
+.ntoast.out{opacity:0;transform:translateX(20px)}
+.ntoast .nt-b{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.3}
+.ntoast .nt-b b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntoast .nt-b span{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntoast .nt-x{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;width:24px;height:24px;border-radius:50%;line-height:1}
+.ntoast .nt-x:hover{background:var(--soft)}
+@keyframes ntin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.install-btn{color:var(--accent-d)}
+.install-auth{margin-top:10px;width:100%}
+
+/* поддержка */
+.tk{padding:12px 0;border-top:1px solid var(--line)}.tk:first-child{border-top:0;padding-top:0}
+.tk-h{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.tk p{margin:6px 0 0}
+.tk-st{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.tk-st.answered,.tk-st.approved{background:color-mix(in srgb,var(--green) 18%,transparent);color:color-mix(in srgb,var(--green) 70%,#000)}
+.tk-reply{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--soft);border-left:3px solid var(--accent)}
+
+/* вход/регистрация: переключатель способа, поле кода */
+.auth-tabs{display:flex;gap:6px;margin:4px 0 12px;background:var(--soft);padding:4px;border-radius:12px}
+.auth-tabs .tab{flex:1;border:0;background:transparent;padding:8px 10px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted);transition:background .15s,color .15s}
+.auth-tabs .tab.active{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.code-input{font-size:24px;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums}

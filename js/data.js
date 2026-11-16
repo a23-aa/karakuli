@@ -1,5 +1,5 @@
 /* ===================================================================
-   Каракули — слой данных на Supabase (PostgreSQL + Auth + Storage + Realtime).
+   CrownNet — слой данных на Supabase (PostgreSQL + Auth + Storage + Realtime).
 
    Как это устроено:
    • F.init()     подключается к Supabase и восстанавливает сессию.
@@ -132,7 +132,7 @@
     d.likes.forEach(l => { (likesBy[l.target_type + l.target_id] = likesBy[l.target_type + l.target_id] || []).push(l.user_id); });
     d.comments.forEach(c => { const k = c.target_type + c.target_id; (commentsBy[k] = commentsBy[k] || []).push({ id: c.id, authorId: c.author_id, text: c.body, ts: ts(c.created_at) }); });
 
-    DB.posts = d.posts.map(p => ({ id: p.id, authorId: p.author_id, communityId: p.community_id || null, text: p.body || '', photos: p.photos || [], ts: ts(p.created_at), likes: likesBy['post' + p.id] || [], comments: commentsBy['post' + p.id] || [], repostOf: p.repost_of || null }));
+    DB.posts = d.posts.map(p => ({ id: p.id, authorId: p.author_id, communityId: p.community_id || null, text: p.body || '', photos: p.photos || [], ts: ts(p.created_at), likes: likesBy['post' + p.id] || [], comments: commentsBy['post' + p.id] || [], repostOf: p.repost_of || null, views: p.views || 0 }));
     const mem = {}; d.members.forEach(m => { (mem[m.community_id] = mem[m.community_id] || []).push(m.user_id); });
     DB.communities = d.communities.map(c => ({ id: c.id, name: c.name, desc: c.description || '', emoji: GLYPHS[F.hashStr(c.id) % GLYPHS.length], avatar: c.avatar_url || null, cover: c.cover_url || null, creatorId: c.creator_id, members: mem[c.id] || [], base: 0, created: ts(c.created_at) }));
     DB.albums = d.albums.map(a => ({ id: a.id, ownerId: a.owner_id, name: a.name, ts: ts(a.created_at), system: a.is_system ? 'wall' : false }));
@@ -152,24 +152,24 @@
     DB.notifications = d.notifications.map(n => ({ id: n.id, userId: n.user_id, type: n.type, fromId: n.from_id || n.community_id, ts: ts(n.created_at), read: !!n.is_read, link: n.link || '' }));
   }
 
-  /* ---------- юзернеймы ---------- */
-  /** Проверка юзернейма: { ok, text }. Формат проверяется на месте, занятость — в базе. */
+  /* ---------- никнеймы ---------- */
+  /** Проверка никнейма: { ok, text }. Формат проверяется на месте, занятость — в базе. */
   F.checkUsername = async v => {
     v = String(v || '').trim().toLowerCase();
     const bad = F.usernameProblem(v); if (bad) return { ok: false, text: bad };
     if (!sb) return { ok: false, text: 'Нет соединения' };
     const r = await sb.rpc('username_available', { u: v });
     if (r.error) return { ok: false, text: nice(r.error.message) };
-    return r.data ? { ok: true, text: '@' + v + ' свободен' } : { ok: false, text: 'Этот юзернейм занят или зарезервирован' };
+    return r.data ? { ok: true, text: '@' + v + ' свободен' } : { ok: false, text: 'Этот никнейм занят или зарезервирован' };
   };
-  /** Занять (или сменить) свой юзернейм. Занятость окончательно решает база. */
+  /** Занять (или сменить) свой никнейм. Занятость окончательно решает база. */
   F.setUsername = async v => {
     v = String(v || '').trim().toLowerCase();
     const bad = F.usernameProblem(v); if (bad) return { ok: false, text: bad };
     await F.flush();
     const me = F.sessionId();
     const r = await sb.from('profiles').update({ username: v }).eq('id', me);
-    if (r.error) return { ok: false, text: /duplicate|unique|reserved/i.test(r.error.message) ? 'Этот юзернейм занят или зарезервирован' : nice(r.error.message) };
+    if (r.error) return { ok: false, text: /duplicate|unique|reserved/i.test(r.error.message) ? 'Этот никнейм занят или зарезервирован' : nice(r.error.message) };
     const u = DB.users[me]; if (u) u.username = v;
     if (loaded) last = toRows();
     return { ok: true, text: '' };

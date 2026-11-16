@@ -1,4 +1,4 @@
-// Каракули — Edge Function «push»: рассылает Web Push. Вызывается только базой (заголовок x-push-secret).
+// CrownNet — Edge Function «push»: рассылает Web Push. Вызывается только базой (заголовок x-push-secret).
 // Ключи и секрет читаются из таблицы push_config (доступ с сайта к ней закрыт).
 // Вставьте этот код в Supabase → Edge Functions → Deploy a new function (name: push) и выключите «Enforce JWT Verification».
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
   let q = sb.from("push_subscriptions").select("id,endpoint,p256dh,auth");
   if (body.user_id) q = q.eq("user_id", body.user_id);
   const { data: subs } = await q.limit(5000);
-  const payload = JSON.stringify({ title: body.title || "Каракули", body: body.body || "", url: body.url || "index.html", tag: body.tag || null });
+  const payload = JSON.stringify({ title: body.title || "CrownNet", body: body.body || "", url: body.url || "index.html", tag: body.tag || null });
   const urgency = body.tag === "call" ? "high" : "normal", ttl = body.tag === "call" ? 45 : 3600;
 
   let sent = 0, dead = 0;

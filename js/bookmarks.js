@@ -1,4 +1,4 @@
-/* Каракули — закладки: записи, фотографии, ссылки. */
+/* CrownNet — закладки: записи, фотографии, ссылки. */
 (function (F) {
   'use strict';
   if (document.body.dataset.page !== 'bookmarks') return;
